@@ -5,31 +5,47 @@
   <title>Login</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="min-h-screen flex items-center justify-center bg-white">
-  <form class="border border-gray-300 p-6 w-72" action="#" method="POST">
-    <h2 class="text-center text-black mb-4 text-sm font-normal">LOGIN</h2>
-    <label class="block text-xs text-black mb-1" for="username">Username</label>
+<body class="bg-white min-h-screen flex items-center justify-center">
+  <form class="border border-gray-300 shadow-sm p-8 w-80" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="POST">
+    <h2 class="text-center text-black mb-8 font-normal text-xl">LOGIN</h2>
+    <label for="username" class="block text-blue-700 mb-1 text-sm font-medium">Username</label>
     <input
       id="username"
       name="username"
       type="text"
       placeholder="Masukkan Username"
-      class="w-full text-xs text-gray-500 border border-gray-300 rounded px-2 py-1 mb-3 focus:outline-none focus:ring-1 focus:ring-blue-600"
+      class="w-full mb-6 px-3 py-2 border border-gray-300 rounded-md text-gray-400 placeholder-gray-400 text-sm focus:outline-none focus:ring-1 focus:ring-blue-700 focus:border-blue-700"
+      value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>"
+      required
     />
-    <label class="block text-xs text-black mb-1" for="password">Password</label>
+    <label for="password" class="block text-blue-700 mb-1 text-sm font-medium">Password</label>
     <input
       id="password"
       name="password"
       type="password"
       placeholder="Masukkan Password"
-      class="w-full text-xs text-gray-500 border border-gray-300 rounded px-2 py-1 mb-4 focus:outline-none focus:ring-1 focus:ring-blue-600"
+      class="w-full mb-6 px-3 py-2 border border-gray-300 rounded-md text-gray-400 placeholder-gray-400 text-sm focus:outline-none focus:ring-1 focus:ring-blue-700 focus:border-blue-700"
+      required
     />
     <button
       type="submit"
-      class="w-full bg-blue-700 text-white text-xs rounded px-3 py-1.5 hover:bg-blue-800"
+      class="block mx-auto bg-blue-700 text-white px-6 py-2 rounded-md text-sm"
     >
       Login
     </button>
   </form>
+
+  <?php
+  if ($_SERVER["REQUEST_METHOD"] == "POST") {
+      $username = htmlspecialchars($_POST['username']);
+      $password = htmlspecialchars($_POST['password']);
+      // Example simple validation (replace with real authentication logic)
+      if ($username === "admin" && $password === "password") {
+          echo '<p class="text-center mt-4 text-green-600 font-semibold">Login successful!</p>';
+      } else {
+          echo '<p class="text-center mt-4 text-red-600 font-semibold">Invalid username or password.</p>';
+      }
+  }
+  ?>
 </body>
 </html>
