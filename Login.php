@@ -35,17 +35,24 @@
     </button>
   </form>
 
-  <?php
-  if ($_SERVER["REQUEST_METHOD"] == "POST") {
-      $username = htmlspecialchars($_POST['username']);
-      $password = htmlspecialchars($_POST['password']);
-      // Example simple validation (replace with real authentication logic)
-      if ($username === "admin" && $password === "password") {
-          echo '<p class="text-center mt-4 text-green-600 font-semibold">Login successful!</p>';
-      } else {
-          echo '<p class="text-center mt-4 text-red-600 font-semibold">Invalid username or password.</p>';
-      }
-  }
-  ?>
+<?php
+session_start();
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = htmlspecialchars($_POST['username']);
+    $password = htmlspecialchars($_POST['password']);
+
+    if ($username === "admin" && $password === "password") {
+        $_SESSION['username'] = $username;
+        header("Location: Index.php");
+        exit();
+    } else {
+        $error = "Username atau password salah.";
+    }
+}
+?>
+
+<!-- form HTML tetap seperti sebelumnya -->
+
 </body>
 </html>
