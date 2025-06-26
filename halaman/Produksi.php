@@ -1,3 +1,10 @@
+<?php
+if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
+    header("Location: ../Index.php?page=produksi");
+    exit;
+}
+?>
+
 <!-- Konten -->
 <section class="p-6 flex flex-col space-y-4">
   <button

@@ -1,11 +1,18 @@
-      <section class="flex-1 p-6">
+<?php
+if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
+    header("Location: ../Index.php?page=laporan");
+    exit;
+}
+?>
+
+<section class="flex-1 p-6">
         <div class="flex flex-wrap items-center justify-between mb-4 gap-4">
           <div class="flex space-x-4">
             <select
               id="periode-select"
               name="periode"
               aria-label="Periode"
-              class="border border-gray-300 rounded px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2f49b7] focus:border-[#2f49b7]"
+              class="border border-gray-300 rounded px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2f49b7] focus:border-[#2f49b7] font-bold"
             >
               <option value="" disabled selected>Periode</option>
               <option value="harian">Harian</option>
@@ -16,7 +23,7 @@
               id="kategori-select"
               name="kategori"
               aria-label="Kategori"
-              class="border border-gray-300 rounded px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2f49b7] focus:border-[#2f49b7]"
+              class="border border-gray-300 rounded px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2f49b7] focus:border-[#2f49b7] font-bold"
             >
               <option value="semua" selected>Semua (default)</option>
               <option value="produksi">Produksi</option>
@@ -37,12 +44,12 @@
           <table class="min-w-full text-left text-sm">
             <thead class="bg-blue-200 text-gray-800">
               <tr>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">No.</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Tanggal</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Jumlah Produksi</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Jumlah Dikemas</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Jumlah Reject</th>
-                <th class="px-4 py-2 font-normal">Total Produksi</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">No.</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Tanggal</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Jumlah Produksi</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Jumlah Dikemas</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Jumlah Reject</th>
+                <th class="px-4 py-2 font-bold">Total Produksi</th>
               </tr>
             </thead>
             <tbody class="bg-white min-h-[300px]">

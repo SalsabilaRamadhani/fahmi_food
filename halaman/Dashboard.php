@@ -1,9 +1,9 @@
-<php? session_start();
-if (!isset($_SESSION['user_id'])) {
-  header("Location: Login.php");
-  exit;
+<?php
+if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
+    header("Location: ../Index.php?page=dashboard");
+    exit;
 }
-?> 
+?>
 
 <!-- Content -->
       <section class="flex-1 p-8 space-y-8 flex flex-col items-center">

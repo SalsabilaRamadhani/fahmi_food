@@ -1,4 +1,11 @@
-  <script>
+<?php
+if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
+    header("Location: ../Index.php?page=stok");
+    exit;
+}
+?>
+
+<script>
     // Show modals
     function openAddModal() {
       document.getElementById('addModal').classList.remove('hidden');

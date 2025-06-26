@@ -1,3 +1,10 @@
+<?php
+if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
+    header("Location: ../Index.php?page=pekerja");
+    exit;
+}
+?>
+
 <!-- Konten -->
 <section class="flex flex-col p-6 flex-1">
   <div class="flex flex-col sm:flex-row sm:items-center mb-4">

@@ -1,11 +1,4 @@
 <?php
-session_start();
-// Cek apakah sudah login
-if (!isset($_SESSION['username'])) {
-    header("Location: Login.php");
-    exit();
-}
-
 // Ambil parameter halaman
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 
@@ -20,7 +13,7 @@ $halaman = [
 ];
 
 $current = $page . '.php';
-$logoPath = 'assets/logo.png';
+$logoPath = 'assets/logo.jpg';
 ?>
 
 <!DOCTYPE html>

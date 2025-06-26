@@ -1,4 +1,11 @@
-      <!-- Content -->
+<?php
+if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
+    header("Location: ../Index.php?page=distribusi");
+    exit;
+}
+?>
+
+<!-- Content -->
         <section class="flex-1 p-6">
         <button
           id="openInputModalBtn"
@@ -11,13 +18,13 @@
           <table class="min-w-full text-sm text-left">
             <thead class="bg-blue-200 text-gray-900">
               <tr>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">No.</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Nama Distributor</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Alamat</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Nama Produk</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Jumlah</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-normal">Tanggal</th>
-                <th class="px-4 py-2 font-normal">Aksi</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">No.</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Nama Distributor</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Alamat</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Nama Produk</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Jumlah</th>
+                <th class="px-4 py-2 border-r border-gray-300 font-bold">Tanggal</th>
+                <th class="px-4 py-2 font-bold">Aksi</th>
               </tr>
             </thead>
             <tbody class="bg-white min-h-[200px]">
