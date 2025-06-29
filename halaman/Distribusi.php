@@ -5,37 +5,63 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
 }
 ?>
 
-<!-- Content -->
-        <section class="flex-1 p-6">
+<section class="flex-1 p-8 bg-white relative z-10">
         <button
-          id="openInputModalBtn"
-          class="mb-4 inline-flex items-center gap-2 bg-blue-700 text-white text-sm font-normal px-4 py-2 rounded shadow hover:bg-blue-800 transition-colors"
+          id="openModalBtn"
+          type="button"
+          class="mb-4 inline-flex items-center gap-2 bg-[#2f49cc] text-white text-sm font-normal py-2 px-4 rounded-md shadow-md hover:shadow-lg transition"
         >
-          <i class="fas fa-plus"></i> Input Pesanan
+          <i class="fas fa-plus"></i>
+          Input Pesanan
         </button>
 
-        <div class="overflow-x-auto border border-gray-300 rounded shadow-sm">
-          <table class="min-w-full text-sm text-left">
-            <thead class="bg-blue-200 text-gray-900">
-              <tr>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">No.</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Nama Distributor</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Alamat</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Nama Produk</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Jumlah</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Tanggal</th>
-                <th class="px-4 py-2 font-bold">Aksi</th>
+        <div class="overflow-x-auto border border-gray-300 rounded-md shadow-sm">
+          <table class="min-w-full border-collapse">
+            <thead>
+              <tr class="bg-blue-200 text-black text-sm font-normal">
+                <th class="border border-gray-300 px-3 py-2 text-left w-12">No.</th>
+                <th class="border border-gray-300 px-3 py-2 text-left w-36">Distributor</th>
+                <th class="border border-gray-300 px-3 py-2 text-left w-36">Alamat</th>
+                <th class="border border-gray-300 px-3 py-2 text-left w-48">Produk</th>
+                <th class="border border-gray-300 px-3 py-2 text-left w-20">Jumlah</th>
+                <th class="border border-gray-300 px-3 py-2 text-left w-28">Tanggal</th>
+                <th class="border border-gray-300 px-3 py-2 text-left w-28">Status</th>
+                <th class="border border-gray-300 px-3 py-2 text-left w-32">Aksi</th>
               </tr>
             </thead>
-            <tbody class="bg-white min-h-[200px]">
-              <tr>
-                <td colspan="7" class="h-48"></td>
-              </tr>
-              <tr class="text-right">
-                <td colspan="7" class="pr-4 space-x-2">
-                  <button id="editBtn" class="bg-blue-700 text-white text-xs px-3 py-1 rounded hover:bg-blue-800 transition-colors">Edit</button>
-                  <button id="deleteBtn" class="text-white text-xs px-3 py-1 rounded transition-colors" style="background-color:#B22222;" onmouseover="this.style.backgroundColor='#8B1A1A'" onmouseout="this.style.backgroundColor='#B22222'">Hapus</button>
+            <tbody id="ordersTableBody">
+              <tr class="text-sm text-black">
+                <td class="border border-gray-300 px-3 py-2 text-left align-top">1.</td>
+                <td class="border border-gray-300 px-3 py-2 text-left align-top">Toko Jaya</td>
+                <td class="border border-gray-300 px-3 py-2 text-left align-top">Semarang</td>
+                <td class="border border-gray-300 px-3 py-2 text-left align-top">Agar-agar pita</td>
+                <td class="border border-gray-300 px-3 py-2 text-left align-top">249 kg</td>
+                <td class="border border-gray-300 px-3 py-2 text-left align-top">25-03-2025</td>
+                <td class="border border-gray-300 px-3 py-2 text-left align-top">Diproses</td>
+                <td class="border border-gray-300 px-3 py-2 text-left align-top space-x-2">
+                  <button
+                    type="button"
+                    class="editBtn bg-blue-700 text-white text-xs px-3 py-1 rounded hover:bg-blue-800 transition"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="deleteBtn bg-red-700 text-white text-xs px-3 py-1 rounded hover:bg-red-800 transition"
+                  >
+                    Hapus
+                  </button>
                 </td>
+              </tr>
+              <tr>
+                <td class="border border-gray-300 px-3 py-2">&nbsp;</td>
+                <td class="border border-gray-300 px-3 py-2"></td>
+                <td class="border border-gray-300 px-3 py-2"></td>
+                <td class="border border-gray-300 px-3 py-2"></td>
+                <td class="border border-gray-300 px-3 py-2"></td>
+                <td class="border border-gray-300 px-3 py-2"></td>
+                <td class="border border-gray-300 px-3 py-2"></td>
+                <td class="border border-gray-300 px-3 py-2"></td>
               </tr>
             </tbody>
           </table>
@@ -43,134 +69,169 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
       </section>
 
       <!-- Input Modal Overlay -->
-      <div id="inputModalOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white rounded-md shadow-lg w-full max-w-xs p-6 relative">
-          <button id="closeInputModalBtn" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-lg font-bold">&times;</button>
-          <h2 class="text-black font-semibold text-lg mb-4">Input Pengiriman</h2>
-          <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" class="space-y-4" id="inputForm">
+      <div
+        id="modalOverlay"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50"
+      >
+        <div class="w-full max-w-xs bg-white shadow-md rounded border border-gray-300 p-6 relative">
+          <button
+            id="closeModalBtn"
+            class="absolute top-2 right-2 text-gray-600 hover:text-gray-900"
+            aria-label="Close modal"
+            type="button"
+          >
+            <i class="fas fa-times text-lg"></i>
+          </button>
+          <h2 class="text-black font-semibold text-lg mb-4">Input Pesanan</h2>
+          <form id="orderForm" class="space-y-4" method="POST" action="">
             <input
+              name="distributor"
               type="text"
-              name="nama_distributor"
               placeholder="Nama Distributor"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
               required
+              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
             <input
+              name="alamat"
               type="text"
-              name="nama_produk"
-              placeholder="Nama Produk"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              placeholder="Alamat Distributor"
               required
+              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
             <input
-              type="number"
-              name="jumlah"
-              placeholder="Jumlah"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+              name="produk"
+              type="text"
+              placeholder="Nama Produk"
               required
-              min="1"
+              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
-            <div class="relative">
-              <input
-                type="date"
-                name="tanggal"
-                placeholder="Tanggal"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none"
-                required
-              />
-              <i
-                class="fas fa-calendar-alt absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                aria-hidden="true"
-              ></i>
-            </div>
+            <input
+              name="jumlah"
+              type="text"
+              placeholder="Jumlah"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <input
+              name="tanggal"
+              type="date"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <select
+              name="status"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="" disabled selected>Status</option>
+              <option value="Diproses">Diproses</option>
+              <option value="Dikirim">Dikirim</option>
+              <option value="Selesai">Selesai</option>
+            </select>
             <button
               type="submit"
-              class="w-full bg-blue-700 text-white py-2 rounded-md text-center"
+              class="w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800 transition"
             >
               Simpan
             </button>
           </form>
-          <div id="inputFormMessage" class="mt-4 p-3 border border-green-500 rounded bg-green-50 text-green-700 text-sm hidden"></div>
         </div>
       </div>
 
       <!-- Edit Modal Overlay -->
-      <div id="editModalOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white shadow-lg rounded-md p-6 w-80 relative">
-          <button id="closeEditModalBtn" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-lg font-bold">&times;</button>
-          <h2 class="text-black text-lg font-semibold mb-6">Edit Pengiriman</h2>
-          <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="post" class="space-y-4" id="editForm">
+      <div
+        id="editModalOverlay"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50"
+      >
+        <div class="w-full max-w-xs bg-white shadow-md rounded border border-gray-300 p-6 relative">
+          <button
+            id="closeEditModalBtn"
+            class="absolute top-2 right-2 text-gray-600 hover:text-gray-900"
+            aria-label="Close edit modal"
+            type="button"
+          >
+            <i class="fas fa-times text-lg"></i>
+          </button>
+          <h1 class="text-black text-xl font-semibold mb-6">Edit Pesanan</h1>
+          <form id="editOrderForm" class="space-y-4" method="POST" action="">
             <input
               type="text"
               name="nama_distributor"
               placeholder="Nama Distributor"
-              class="w-full border border-gray-300 rounded-md py-2 px-3 text-gray-500 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
               required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+            />
+            <input
+              type="text"
+              name="alamat_distributor"
+              placeholder="Alamat Distributor"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
             <input
               type="text"
               name="nama_produk"
               placeholder="Nama Produk"
-              class="w-full border border-gray-300 rounded-md py-2 px-3 text-gray-500 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
               required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
             <input
-              type="number"
+              type="text"
               name="jumlah"
               placeholder="Jumlah"
-              class="w-full border border-gray-300 rounded-md py-2 px-3 text-gray-500 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
               required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
-            <div class="relative">
-              <input
-                type="date"
-                name="tanggal"
-                placeholder="Tanggal"
-                class="w-full border border-gray-300 rounded-md py-2 px-3 text-gray-500 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400 appearance-none"
-                required
-              />
-              <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2v-7H3v7a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
-            <div class="flex space-x-3 pt-2">
-              <button
-                type="submit"
-                class="bg-blue-700 text-white text-sm font-normal rounded-md py-2 px-6"
-              >
-                Simpan
-              </button>
-              <button
-                type="button"
-                id="cancelEditBtn"
-                class="border border-gray-900 text-black text-sm font-normal rounded-md py-2 px-6"
-              >
-                Batal
-              </button>
-            </div>
+            <input
+              type="date"
+              name="tanggal"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+            />
+            <select
+              name="status"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm appearance-none bg-white focus:outline-none focus:ring-1 focus:ring-gray-400"
+            >
+              <option value="" disabled>Status</option>
+              <option value="Diproses">Diproses</option>
+              <option value="Dikirim">Dikirim</option>
+              <option value="Selesai">Selesai</option>
+            </select>
+            <button
+              type="submit"
+              class="w-full bg-blue-700 text-white py-2 rounded-md text-center hover:bg-blue-800 transition"
+            >
+              Simpan
+            </button>
           </form>
-          <div id="editFormMessage" class="mt-6 p-4 border border-gray-300 rounded-md bg-gray-50 text-gray-800 text-sm hidden"></div>
+          <div id="editSuccessMsg" class="hidden mt-4 p-3 bg-green-100 text-green-800 rounded"></div>
         </div>
       </div>
 
       <!-- Delete Modal Overlay -->
-      <div id="deleteModalOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="w-[280px] border border-gray-300 shadow-md p-5 bg-white rounded-md relative">
-          <button id="closeDeleteModalBtn" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-lg font-bold">&times;</button>
+      <div
+        id="deleteModalOverlay"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50"
+      >
+        <div class="w-[280px] border border-gray-300 shadow-md p-5 bg-white rounded">
           <h2 class="font-semibold text-black mb-3 text-base">Hapus Data</h2>
           <p class="text-black mb-5 text-sm leading-relaxed">Apakah anda yakin akan menghapus data ini?</p>
-          <div class="flex space-x-3">
-            <button id="confirmDeleteBtn" class="bg-[#B22222] text-white text-sm font-normal rounded px-4 py-2">Hapus</button>
-            <button id="cancelDeleteBtn" class="border border-gray-400 text-black text-sm font-normal rounded px-4 py-2">Batal</button>
+          <div class="flex space-x-3 justify-end">
+            <button
+              id="confirmDeleteBtn"
+              class="bg-[#B22222] text-white text-sm font-normal rounded px-4 py-2"
+              type="button"
+            >
+              Hapus
+            </button>
+            <button
+              id="cancelDeleteBtn"
+              class="border border-gray-400 text-black text-sm font-normal rounded px-4 py-2"
+              type="button"
+            >
+              Batal
+            </button>
           </div>
         </div>
       </div>
@@ -178,157 +239,238 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
   </div>
 
   <script>
-    // Modal elements
-    const openInputModalBtn = document.getElementById('openInputModalBtn');
-    const closeInputModalBtn = document.getElementById('closeInputModalBtn');
-    const inputModalOverlay = document.getElementById('inputModalOverlay');
-    const inputForm = document.getElementById('inputForm');
-    const inputFormMessage = document.getElementById('inputFormMessage');
+    const openModalBtn = document.getElementById('openModalBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const orderForm = document.getElementById('orderForm');
+    const ordersTableBody = document.getElementById('ordersTableBody');
 
-    const editBtn = document.getElementById('editBtn');
     const editModalOverlay = document.getElementById('editModalOverlay');
     const closeEditModalBtn = document.getElementById('closeEditModalBtn');
-    const cancelEditBtn = document.getElementById('cancelEditBtn');
-    const editForm = document.getElementById('editForm');
-    const editFormMessage = document.getElementById('editFormMessage');
+    const editOrderForm = document.getElementById('editOrderForm');
+    const editSuccessMsg = document.getElementById('editSuccessMsg');
 
-    const deleteBtn = document.getElementById('deleteBtn');
     const deleteModalOverlay = document.getElementById('deleteModalOverlay');
-    const closeDeleteModalBtn = document.getElementById('closeDeleteModalBtn');
-    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
 
-    // Open Input Modal
-    openInputModalBtn.addEventListener('click', () => {
-      inputModalOverlay.classList.remove('hidden');
-      inputModalOverlay.classList.add('flex');
-      inputFormMessage.classList.add('hidden');
-      inputForm.reset();
+    let rowToDelete = null;
+
+    openModalBtn.addEventListener('click', () => {
+      modalOverlay.classList.remove('hidden');
     });
 
-    // Close Input Modal
-    closeInputModalBtn.addEventListener('click', () => {
-      inputModalOverlay.classList.add('hidden');
-      inputModalOverlay.classList.remove('flex');
-      inputFormMessage.classList.add('hidden');
-      inputForm.reset();
+    closeModalBtn.addEventListener('click', () => {
+      modalOverlay.classList.add('hidden');
     });
 
-    // Close Input Modal on outside click
-    inputModalOverlay.addEventListener('click', (e) => {
-      if (e.target === inputModalOverlay) {
-        closeInputModalBtn.click();
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        modalOverlay.classList.add('hidden');
       }
     });
 
-    // Open Edit Modal
-    editBtn.addEventListener('click', () => {
-      editModalOverlay.classList.remove('hidden');
-      editModalOverlay.classList.add('flex');
-      editFormMessage.classList.add('hidden');
-      editForm.reset();
-    });
-
-    // Close Edit Modal
     closeEditModalBtn.addEventListener('click', () => {
       editModalOverlay.classList.add('hidden');
-      editModalOverlay.classList.remove('flex');
-      editFormMessage.classList.add('hidden');
-      editForm.reset();
-    });
-    cancelEditBtn.addEventListener('click', () => {
-      closeEditModalBtn.click();
+      editSuccessMsg.classList.add('hidden');
     });
 
-    // Close Edit Modal on outside click
     editModalOverlay.addEventListener('click', (e) => {
       if (e.target === editModalOverlay) {
-        closeEditModalBtn.click();
+        editModalOverlay.classList.add('hidden');
+        editSuccessMsg.classList.add('hidden');
       }
     });
 
-    // Open Delete Modal
-    deleteBtn.addEventListener('click', () => {
-      deleteModalOverlay.classList.remove('hidden');
-      deleteModalOverlay.classList.add('flex');
-    });
-
-    // Close Delete Modal
-    closeDeleteModalBtn.addEventListener('click', () => {
-      deleteModalOverlay.classList.add('hidden');
-      deleteModalOverlay.classList.remove('flex');
-    });
     cancelDeleteBtn.addEventListener('click', () => {
-      closeDeleteModalBtn.click();
+      deleteModalOverlay.classList.add('hidden');
+      rowToDelete = null;
     });
 
-    // Close Delete Modal on outside click
     deleteModalOverlay.addEventListener('click', (e) => {
       if (e.target === deleteModalOverlay) {
-        closeDeleteModalBtn.click();
+        deleteModalOverlay.classList.add('hidden');
+        rowToDelete = null;
       }
     });
 
-    // Confirm Delete button action (example: just close modal here)
     confirmDeleteBtn.addEventListener('click', () => {
-      // Here you can add your delete logic (e.g., AJAX call)
-      alert('Data telah dihapus.');
-      closeDeleteModalBtn.click();
+      if (rowToDelete) {
+        rowToDelete.remove();
+        rowToDelete = null;
+        deleteModalOverlay.classList.add('hidden');
+        // Re-number rows
+        const rows = ordersTableBody.querySelectorAll('tr');
+        rows.forEach((row, idx) => {
+          const firstCell = row.querySelector('td');
+          if (firstCell) firstCell.textContent = (idx + 1) + '.';
+        });
+      }
     });
 
-    // Handle Input Form submission with AJAX
-    inputForm.addEventListener('submit', function(e) {
+    // Handle form submission with AJAX to PHP backend for input
+    orderForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData(inputForm);
-      fetch('<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>', {
+
+      const formData = new FormData(orderForm);
+
+      const response = await fetch('', {
         method: 'POST',
-        body: formData
-      })
-      .then(response => response.text())
-      .then(data => {
-        inputFormMessage.innerHTML = `
-          Data berhasil disimpan:<br>
-          Nama Distributor: ${formData.get('nama_distributor')}<br>
-          Nama Produk: ${formData.get('nama_produk')}<br>
-          Jumlah: ${formData.get('jumlah')}<br>
-          Tanggal: ${formData.get('tanggal')}
-        `;
-        inputFormMessage.classList.remove('hidden');
-        inputForm.reset();
-      })
-      .catch(() => {
-        inputFormMessage.innerHTML = 'Terjadi kesalahan saat menyimpan data.';
-        inputFormMessage.classList.remove('bg-green-50');
-        inputFormMessage.classList.add('bg-red-50', 'border-red-500', 'text-red-700');
-        inputFormMessage.classList.remove('hidden');
+        body: formData,
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          const newRow = document.createElement('tr');
+          newRow.classList.add('text-sm', 'text-black');
+
+          const rowCount = ordersTableBody.querySelectorAll('tr').length;
+          const newRowNumber = rowCount;
+
+          newRow.innerHTML = `
+            <td class="border border-gray-300 px-3 py-2 text-left align-top">${newRowNumber}.</td>
+            <td class="border border-gray-300 px-3 py-2 text-left align-top">${result.data.distributor}</td>
+            <td class="border border-gray-300 px-3 py-2 text-left align-top">${result.data.alamat}</td>
+            <td class="border border-gray-300 px-3 py-2 text-left align-top">${result.data.produk}</td>
+            <td class="border border-gray-300 px-3 py-2 text-left align-top">${result.data.jumlah}</td>
+            <td class="border border-gray-300 px-3 py-2 text-left align-top">${result.data.tanggal}</td>
+            <td class="border border-gray-300 px-3 py-2 text-left align-top">${result.data.status}</td>
+            <td class="border border-gray-300 px-3 py-2 text-left align-top space-x-2">
+              <button type="button" class="editBtn bg-blue-700 text-white text-xs px-3 py-1 rounded hover:bg-blue-800 transition">Edit</button>
+              <button type="button" class="deleteBtn bg-red-700 text-white text-xs px-3 py-1 rounded hover:bg-red-800 transition">Hapus</button>
+            </td>
+          `;
+
+          const emptyRow = ordersTableBody.querySelector('tr:last-child');
+          if (
+            emptyRow &&
+            emptyRow.querySelectorAll('td').length === 8 &&
+            emptyRow.textContent.trim() === ''
+          ) {
+            ordersTableBody.insertBefore(newRow, emptyRow);
+          } else {
+            ordersTableBody.appendChild(newRow);
+          }
+
+          orderForm.reset();
+          modalOverlay.classList.add('hidden');
+          attachEditDeleteListeners();
+        } else {
+          alert('Gagal menyimpan data.');
+        }
+      } else {
+        alert('Terjadi kesalahan saat mengirim data.');
+      }
     });
 
-    // Handle Edit Form submission with AJAX
-    editForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const formData = new FormData(editForm);
-      fetch('<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.text())
-      .then(data => {
-        editFormMessage.innerHTML = `
-          <strong>Data yang dikirim:</strong><br>
-          Nama Distributor: ${formData.get('nama_distributor')}<br>
-          Nama Produk: ${formData.get('nama_produk')}<br>
-          Jumlah: ${formData.get('jumlah')}<br>
-          Tanggal: ${formData.get('tanggal')}
-        `;
-        editFormMessage.classList.remove('hidden');
-        editForm.reset();
-      })
-      .catch(() => {
-        editFormMessage.innerHTML = 'Terjadi kesalahan saat menyimpan data.';
-        editFormMessage.classList.remove('bg-gray-50');
-        editFormMessage.classList.add('bg-red-50', 'border-red-500', 'text-red-700');
-        editFormMessage.classList.remove('hidden');
+    // Attach edit and delete button listeners
+    function attachEditDeleteListeners() {
+      const editButtons = document.querySelectorAll('.editBtn');
+      const deleteButtons = document.querySelectorAll('.deleteBtn');
+
+      editButtons.forEach((btn) => {
+        btn.removeEventListener('click', handleEditClick);
+        btn.addEventListener('click', handleEditClick);
       });
+
+      deleteButtons.forEach((btn) => {
+        btn.removeEventListener('click', handleDeleteClick);
+        btn.addEventListener('click', handleDeleteClick);
+      });
+    }
+
+    function handleEditClick(e) {
+      const tr = e.target.closest('tr');
+      if (!tr) return;
+
+      const cells = tr.querySelectorAll('td');
+      editOrderForm.nama_distributor.value = cells[1].textContent.trim();
+      editOrderForm.alamat_distributor.value = cells[2].textContent.trim();
+      editOrderForm.nama_produk.value = cells[3].textContent.trim();
+      editOrderForm.jumlah.value = cells[4].textContent.trim().replace(/[^\d]/g, '');
+      editOrderForm.tanggal.value = cells[5].textContent.trim().split('-').reverse().join('-');
+      const statusValue = cells[6].textContent.trim();
+
+      Array.from(editOrderForm.status.options).forEach(option => {
+        option.selected = option.value === statusValue;
+      });
+
+      editOrderForm.dataset.editingRowIndex = Array.from(ordersTableBody.children).indexOf(tr);
+
+      editSuccessMsg.classList.add('hidden');
+      editModalOverlay.classList.remove('hidden');
+    }
+
+    function handleDeleteClick(e) {
+      const tr = e.target.closest('tr');
+      if (!tr) return;
+      rowToDelete = tr;
+      deleteModalOverlay.classList.remove('hidden');
+    }
+
+    // Handle edit form submission
+    editOrderForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(editOrderForm);
+
+      const editingRowIndex = parseInt(editOrderForm.dataset.editingRowIndex, 10);
+      if (isNaN(editingRowIndex)) {
+        alert('Terjadi kesalahan saat mengedit data.');
+        return;
+      }
+
+      const rows = ordersTableBody.querySelectorAll('tr');
+      const row = rows[editingRowIndex];
+      if (!row) {
+        alert('Baris data tidak ditemukan.');
+        return;
+      }
+
+      const cells = row.querySelectorAll('td');
+      cells[1].textContent = formData.get('nama_distributor');
+      cells[2].textContent = formData.get('alamat_distributor');
+      cells[3].textContent = formData.get('nama_produk');
+      cells[4].textContent = formData.get('jumlah');
+      const dateVal = formData.get('tanggal');
+      const dateParts = dateVal.split('-');
+      cells[5].textContent = dateParts.length === 3 ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : dateVal;
+      cells[6].textContent = formData.get('status');
+
+      editSuccessMsg.textContent = 'Data pesanan berhasil diperbarui.';
+      editSuccessMsg.classList.remove('hidden');
+
+      setTimeout(() => {
+        editModalOverlay.classList.add('hidden');
+        editSuccessMsg.classList.add('hidden');
+      }, 1500);
     });
+
+    attachEditDeleteListeners();
   </script>
+
+  <?php
+  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $distributor = htmlspecialchars($_POST['distributor'] ?? '');
+    $alamat = htmlspecialchars($_POST['alamat'] ?? '');
+    $produk = htmlspecialchars($_POST['produk'] ?? '');
+    $jumlah = htmlspecialchars($_POST['jumlah'] ?? '');
+    $tanggal = htmlspecialchars($_POST['tanggal'] ?? '');
+    $status = htmlspecialchars($_POST['status'] ?? '');
+
+    header('Content-Type: application/json');
+    echo json_encode([
+      'success' => true,
+      'data' => [
+        'distributor' => $distributor,
+        'alamat' => $alamat,
+        'produk' => $produk,
+        'jumlah' => $jumlah,
+        'tanggal' => $tanggal,
+        'status' => $status,
+      ],
+    ]);
+    exit;
+  }
+  ?>
