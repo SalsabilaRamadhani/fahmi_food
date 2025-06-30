@@ -1,13 +1,15 @@
+
+
 <?php
-$host     = 'localhost';     // atau 127.0.0.1
-$user     = 'root';          // sesuaikan dengan user database kamu
-$password = '';              // default XAMPP biasanya kosong
-$database = 'fahmi_food';    // nama database dari SQL yang sebelumnya
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "fahmi_food"; // Ganti dengan nama database kamu
 
-$koneksi = mysqli_connect($host, $user, $password, $database);
+$koneksi = mysqli_connect($host, $user, $pass, $db);
 
-// cek koneksi
+// Cek koneksi
 if (!$koneksi) {
-    die("Koneksi database gagal: " . mysqli_connect_error());
+    die("Koneksi gagal: " . mysqli_connect_error());
 }
 ?>
