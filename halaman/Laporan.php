@@ -1,139 +1,109 @@
 <?php
-if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
-    header("Location: ../Index.php?page=laporan");
-    exit;
+
+
+// --- Dummy Data Produksi
+$produksi = [
+  ['id' => 'P001', 'produk' => 'Agar Pita', 'jumlah' => 100],
+  ['id' => 'P002', 'produk' => 'Agar Polos', 'jumlah' => 80],
+];
+$totalProduksi = count($produksi);
+
+// --- Dummy Data Stok
+$stok = [
+  ['status' => 'Siap Dipacking', 'jumlah' => 249],
+  ['status' => 'Sudah DIpacking', 'jumlah' => 249],
+  ['status' => 'Reject', 'jumlah' => 1],
+  ['status' => 'Siap Dikemas', 'jumlah' => 250],
+];
+
+// --- Dummy Data Pekerja
+$pekerja = [
+  ['nama' => 'Ian Sopian', 'gaji' => 250000, 'status' => 'Dibayar'],
+  ['nama' => 'Dinda', 'gaji' => 300000, 'status' => 'Belum Dibayar'],
+];
+
+$total_gaji = 0;
+$total_dibayar = 0;
+$total_belum = 0;
+foreach ($pekerja as $p) {
+  $total_gaji += $p['gaji'];
+  if ($p['status'] == 'Dibayar') {
+    $total_dibayar += $p['gaji'];
+  } else {
+    $total_belum += $p['gaji'];
+  }
 }
 ?>
 
-<section class="flex-1 p-6">
-        <div class="flex flex-wrap items-center justify-between mb-4 gap-4">
-          <div class="flex space-x-4">
-            <select
-              id="periode-select"
-              name="periode"
-              aria-label="Periode"
-              class="border border-gray-300 rounded px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2f49b7] focus:border-[#2f49b7] font-bold"
-            >
-              <option value="" disabled selected>Periode</option>
-              <option value="harian">Harian</option>
-              <option value="mingguan">Mingguan</option>
-              <option value="bulanan">Bulanan</option>
-            </select>
-            <select
-              id="kategori-select"
-              name="kategori"
-              aria-label="Kategori"
-              class="border border-gray-300 rounded px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2f49b7] focus:border-[#2f49b7] font-bold"
-            >
-              <option value="semua" selected>Semua (default)</option>
-              <option value="produksi">Produksi</option>
-              <option value="stok">Stok</option>
-              <option value="pekerja_lepas">Pekerja Lepas</option>
-            </select>
-          </div>
-          <button
-            id="btn-cetak-laporan"
-            type="button"
-            class="bg-[#2f49b7] text-white text-sm px-4 py-2 rounded shadow hover:bg-[#243a8a] transition-colors"
-          >
-            Cetak Laporan
-          </button>
-        </div>
+<section class="p-6 space-y-8">
 
-        <div class="overflow-x-auto shadow-md rounded border border-gray-200">
-          <table class="min-w-full text-left text-sm">
-            <thead class="bg-blue-200 text-gray-800">
-              <tr>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">No.</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Tanggal</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Jumlah Produksi</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Jumlah Dikemas</th>
-                <th class="px-4 py-2 border-r border-gray-300 font-bold">Jumlah Reject</th>
-                <th class="px-4 py-2 font-bold">Total Produksi</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white min-h-[300px]">
-              <tr>
-                <td colspan="6" class="py-20"></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- Modal Overlay -->
-      <div id="modal-overlay" class="hidden fixed inset-0 flex items-center justify-center z-50">
-        <div class="w-72 bg-white shadow-md rounded border border-gray-300 p-5 relative">
-          <h1 class="font-bold text-lg mb-4">Cetak Laporan</h1>
-          <form action="process.php" method="POST" class="space-y-4" id="cetakForm">
-            <select
-              name="tujuan_file"
-              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
-              required
-            >
-              <option disabled selected>Tujuan File Tersimpan</option>
-              <option value="local_disk_c">Simpan ke Local Disk C</option>
-              <option value="local_disk_d">Simpan ke Local Disk D</option>
-            </select>
-            <select
-              name="halaman"
-              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
-              required
-            >
-              <option disabled selected>Halaman</option>
-              <option value="cetak_semua_halaman">Cetak Semua Halaman</option>
-              <option value="1_halaman_ini">1 Halaman Ini</option>
-            </select>
-            <select
-              name="tata_letak"
-              class="w-full px-3 py-2 border border-gray-300 rounded shadow-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
-              required
-            >
-              <option disabled selected>Tata Letak</option>
-              <option value="landscape">Landscape</option>
-              <option value="potrait">Potrait</option>
-            </select>
-            <div class="flex space-x-3">
-              <button
-                type="submit"
-                class="bg-blue-700 text-white px-5 py-2 rounded text-sm font-normal shadow-sm hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              >
-                Simpan
-              </button>
-              <button
-                type="button"
-                id="btn-batal"
-                class="border border-gray-700 text-gray-700 px-5 py-2 rounded text-sm font-normal shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400"
-              >
-                Batal
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </main>
+  <!-- Laporan Produksi -->
+  <div>
+    <h2 class="text-lg font-bold mb-3 text-blue-700">Laporan Produksi</h2>
+    <table class="w-full border border-gray-300 text-sm">
+      <thead class="bg-blue-200 text-black">
+        <tr>
+          <th class="border border-gray-300 px-3 py-2 text-left">Total Produksi</th>
+          <th class="border border-gray-300 px-3 py-2 text-left">Jumlah Batch</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="border border-gray-300 px-3 py-2">Produk Agar-agar</td>
+          <td class="border border-gray-300 px-3 py-2"><?= $totalProduksi ?> batch</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  <script>
-    const btnCetak = document.getElementById('btn-cetak-laporan');
-    const modalOverlay = document.getElementById('modal-overlay');
-    const btnBatal = document.getElementById('btn-batal');
-    const cetakForm = document.getElementById('cetakForm');
+  <!-- Laporan Stok -->
+  <div>
+    <h2 class="text-lg font-bold mb-3 text-blue-700">Laporan Stok Produk</h2>
+    <table class="w-full border border-gray-300 text-sm">
+      <thead class="bg-blue-200 text-black">
+        <tr>
+          <th class="border border-gray-300 px-3 py-2">No.</th>
+          <th class="border border-gray-300 px-3 py-2 text-left">Status Stok</th>
+          <th class="border border-gray-300 px-3 py-2 text-left">Total (kg)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($stok as $i => $s): ?>
+        <tr>
+          <td class="border border-gray-300 px-3 py-2"><?= $i+1 ?>.</td>
+          <td class="border border-gray-300 px-3 py-2"><?= $s['status'] ?></td>
+          <td class="border border-gray-300 px-3 py-2"><?= $s['jumlah'] ?> kg</td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
 
-    btnCetak.addEventListener('click', () => {
-      modalOverlay.classList.remove('hidden');
-    });
+  <!-- Laporan Gaji Pekerja -->
+  <div>
+    <h2 class="text-lg font-bold mb-3 text-blue-700">Laporan Gaji Pekerja</h2>
+    <table class="w-full border border-gray-300 text-sm">
+      <thead class="bg-blue-200 text-black">
+        <tr>
+          <th class="border border-gray-300 px-3 py-2 text-left">Keterangan</th>
+          <th class="border border-gray-300 px-3 py-2 text-left">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="border border-gray-300 px-3 py-2">Total Gaji</td>
+          <td class="border border-gray-300 px-3 py-2">Rp. <?= number_format($total_gaji, 0, ',', '.') ?></td>
+        </tr>
+        <tr>
+          <td class="border border-gray-300 px-3 py-2">Sudah Dibayar</td>
+          <td class="border border-gray-300 px-3 py-2">Rp. <?= number_format($total_dibayar, 0, ',', '.') ?></td>
+        </tr>
+        <tr>
+          <td class="border border-gray-300 px-3 py-2">Belum Dibayar</td>
+          <td class="border border-gray-300 px-3 py-2">Rp. <?= number_format($total_belum, 0, ',', '.') ?></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-    btnBatal.addEventListener('click', () => {
-      modalOverlay.classList.add('hidden');
-      cetakForm.reset();
-    });
-
-    // Optional: close modal on clicking outside the modal content
-    modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) {
-        modalOverlay.classList.add('hidden');
-        cetakForm.reset();
-      }
-    });
-  </script>
+</section>

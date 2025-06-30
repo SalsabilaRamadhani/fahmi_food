@@ -1,54 +1,54 @@
-<?php
+<?php include 'auth.php';
+
 if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
     header("Location: ../Index.php?page=produksi");
     exit;
 }
 
-    // Data produk produksi
-    $produksi = [
-      [
-        "id" => "AG01",
-        "nama" => "Agar Pelangi",
-        "tanggal" => "25-03-2025",
-        "jumlah_produksi" => 250,
-        "jumlah_dikemas" => 230,
-        "jumlah_reject" => 20,
-        "satuan" => "kg"
-      ],
-    ];
+// Data produk produksi
+$produksi = [
+  [
+    "id" => "AG01",
+    "nama" => "Agar Pelangi",
+    "tanggal" => "25-03-2025",
+    "jumlah_produksi" => 250,
+    "jumlah_dikemas" => 230,
+    "jumlah_reject" => 20,
+    "satuan" => "kg"
+  ],
+];
 
-    // Hitung total jumlah produksi, dikemas, reject
-    $total_produksi = 0;
-    $total_dikemas = 0;
-    $total_reject = 0;
-    foreach ($produksi as $item) {
-      $total_produksi += $item["jumlah_produksi"];
-      $total_dikemas += $item["jumlah_dikemas"];
-      $total_reject += $item["jumlah_reject"];
-    }
+// Hitung total jumlah produksi, dikemas, reject
+$total_produksi = 0;
+$total_dikemas = 0;
+$total_reject = 0;
+foreach ($produksi as $item) {
+  $total_produksi += $item["jumlah_produksi"];
+  $total_dikemas += $item["jumlah_dikemas"];
+  $total_reject += $item["jumlah_reject"];
+}
 
-    // Handle form submission for tambah produk
-    $form_submitted = false;
-    $form_data = [];
-    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
-      $form_submitted = true;
-      $form_data = [
-        "id_produk" => htmlspecialchars($_POST['id_produk']),
-        "nama_produk" => htmlspecialchars($_POST['nama_produk']),
-        "tanggal_produksi" => htmlspecialchars($_POST['tanggal_produksi']),
-        "jumlah_produksi" => (int)$_POST['jumlah_produksi'],
-        "jumlah_dikemas" => (int)$_POST['jumlah_dikemas'],
-        "jumlah_reject" => (int)$_POST['jumlah_reject'],
-      ];
-    }
-  ?>
- 
-    <!-- Main content -->
-      <section class="p-6 overflow-x-auto">
+// Handle form submission for tambah produk
+$form_submitted = false;
+$form_data = [];
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
+  $form_submitted = true;
+  $form_data = [
+    "id_produk" => htmlspecialchars($_POST['id_produk']),
+    "nama_produk" => htmlspecialchars($_POST['nama_produk']),
+    "tanggal_produksi" => htmlspecialchars($_POST['tanggal_produksi']),
+    "jumlah_produksi" => (int)$_POST['jumlah_produksi'],
+    "jumlah_dikemas" => (int)$_POST['jumlah_dikemas'],
+    "jumlah_reject" => (int)$_POST['jumlah_reject'],
+  ];
+}
+?>
+      <!-- Main content -->
+      <section class="p-6 overflow-x-auto space-y-6">
         <button
           id="btnTambahProduk"
           type="button"
-          class="mb-4 inline-flex items-center gap-2 rounded-md bg-[#3249b3] px-4 py-2 text-white text-sm font-normal hover:bg-[#2a3b8a] transition-colors"
+          class="inline-flex items-center gap-2 rounded-md bg-[#3249b3] px-4 py-2 text-white text-sm font-normal hover:bg-[#2a3b8a] transition-colors"
         >
           <i class="fas fa-plus"></i> Tambah Produk
         </button>
@@ -96,19 +96,32 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
               }
             ?>
           </tbody>
-          <tfoot>
-            <tr class="text-xs text-black text-center">
-              <td class="border border-gray-300 px-2 py-1" colspan="4" style="text-align:right; padding-right: 0.75rem;">
-                Jumlah
-              </td>
-              <td class="border border-gray-300 px-2 py-1"><?php echo $total_produksi . " kg"; ?></td>
-              <td class="border border-gray-300 px-2 py-1"><?php echo $total_dikemas . " kg"; ?></td>
-              <td class="border border-gray-300 px-2 py-1"><?php echo $total_reject . " kg"; ?></td>
-              <td class="border border-gray-300 px-2 py-1">&nbsp;</td>
+        </table>
+
+        <table class="w-full border border-gray-300 border-collapse text-xs text-black">
+          <thead>
+            <tr class="bg-[#c6d3f2] text-center font-normal">
+              <th class="border border-gray-300 px-2 py-1" colspan="2">Jumlah</th>
             </tr>
-          </tfoot>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="border border-gray-300 px-2 py-1">Produksi</td>
+              <td class="border border-gray-300 px-2 py-1 text-center"><?php echo $total_produksi . " kg"; ?></td>
+            </tr>
+            <tr>
+              <td class="border border-gray-300 px-2 py-1">Dikemas</td>
+              <td class="border border-gray-300 px-2 py-1 text-center"><?php echo $total_dikemas . " kg"; ?></td>
+            </tr>
+            <tr>
+              <td class="border border-gray-300 px-2 py-1">Reject</td>
+              <td class="border border-gray-300 px-2 py-1 text-center"><?php echo $total_reject . " kg"; ?></td>
+            </tr>
+          </tbody>
         </table>
       </section>
+    </main>
+  </div>
 
   <!-- Modal overlay for Tambah Produk -->
   <div id="modalTambah" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">

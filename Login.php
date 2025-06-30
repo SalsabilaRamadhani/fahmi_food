@@ -1,9 +1,6 @@
 <?php
-if (session_status() == PHP_SESSION_NONE) {
-    session_start(); // Memulai sesi jika belum dimulai
-}
+if (session_status() == PHP_SESSION_NONE) session_start();
 
-// Proses login jika form disubmit
 $error = '';
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = htmlspecialchars($_POST['username']);
@@ -11,13 +8,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($username === "admin" && $password === "password") {
         $_SESSION['username'] = $username;
-        header("Location: ../Index.php"); // Arahkan ke Index.php setelah login
+        header("Location: Index.php");
         exit();
     } else {
         $error = "Username atau password salah.";
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">

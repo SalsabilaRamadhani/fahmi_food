@@ -1,22 +1,29 @@
 <?php
-// Ambil parameter halaman
+session_start();
+
+// Perbaikan logika login:
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
+
+if (!isset($_SESSION['username']) && ($page !== 'login' || $_SERVER['REQUEST_METHOD'] !== 'POST')) {
+    header("Location: Login.php?page=login");
+    exit();
+}
 
 // Daftar halaman
 $halaman = [
-  'login'     => 'halaman/Login.php',
+  'login'     => 'Login.php',
   'dashboard' => 'halaman/Dashboard.php',
   'produksi'  => 'halaman/Produksi.php',
   'stok'      => 'halaman/Stok.php',
   'pekerja'   => 'halaman/Pekerja.php',
   'distribusi'=> 'halaman/Distribusi.php',
   'laporan'   => 'halaman/Laporan.php',
+  'coba' => 'halaman/coba.php',
 ];
 
 $logoPath = 'assets/logo.jpg';
 ?>
 
-<!-- HTML seperti biasa -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,8 +36,8 @@ $logoPath = 'assets/logo.jpg';
 <body class="bg-white font-sans">
 
 <?php if ($page !== 'login'): ?>
-<!-- tampilkan sidebar dan header -->
 <div class="flex min-h-screen">
+  <!-- Sidebar -->
   <aside class="w-64 border-r border-gray-300 flex flex-col p-6 bg-white">
     <div class="mb-12 flex justify-center">
       <?php if (file_exists($logoPath)) {
@@ -48,6 +55,7 @@ $logoPath = 'assets/logo.jpg';
         'pekerja' => 'Pekerja Lepas',
         'distribusi' => 'Distribusi dan Permintaan',
         'laporan' => 'Laporan',
+        'coba' => 'coba',
       ];
 
       foreach ($menuItems as $key => $label) {
@@ -55,10 +63,11 @@ $logoPath = 'assets/logo.jpg';
         echo "<a href='Index.php?page=$key' class='flex items-center justify-center w-full py-3 rounded border $isActive shadow-sm text-black text-base font-normal transition-all hover:bg-blue-100 hover:border-blue-300'>$label</a>";
       }
       ?>
-      <a href="halaman/Logout.php" class="flex items-center justify-center w-full py-3 rounded border border-red-300 shadow-sm text-red-600 text-base font-normal transition-all hover:bg-red-100 hover:border-red-400">Logout</a>
+      <a href="Logout.php" class="flex items-center justify-center w-full py-3 rounded border border-red-300 shadow-sm text-red-600 text-base font-normal transition-all hover:bg-red-100 hover:border-red-400">Logout</a>
     </nav>
   </aside>
 
+  <!-- Main Content -->
   <main class="flex-1 flex flex-col">
     <header class="bg-[#2f49b7] text-white px-8 py-6 shadow-md">
       <h1 class="text-xl font-normal"><?= ucfirst($page) ?></h1>
@@ -76,7 +85,6 @@ $logoPath = 'assets/logo.jpg';
   </main>
 </div>
 <?php else: ?>
-<!-- Kalau halaman login, langsung tampilkan konten login -->
   <?php include $halaman[$page]; ?>
 <?php endif; ?>
 
