@@ -18,7 +18,9 @@ $halaman = [
   'pekerja'   => 'halaman/Pekerja.php',
   'distribusi'=> 'halaman/Distribusi.php',
   'laporan'   => 'halaman/Laporan.php',
+  'laporan'   => 'halaman/Laporan.php',
   'coba' => 'halaman/coba.php',
+  'riwayat_gaji' => 'halaman/RiwayatGaji.php',
 ];
 
 $logoPath = 'assets/logo.jpg';
@@ -41,7 +43,7 @@ $logoPath = 'assets/logo.jpg';
   <aside class="w-64 border-r border-gray-300 flex flex-col p-6 bg-white">
     <div class="mb-12 flex justify-center">
       <?php if (file_exists($logoPath)) {
-        echo '<img src="' . htmlspecialchars($logoPath) . '" alt="Logo perusahaan" class="max-h-24 object-contain" />';
+        echo '<img src="' . htmlspecialchars($logoPath) . '" alt="Logo perusahaan" class="max-h-24 w-20 object-contain" />';
       } else {
         echo '<div class="w-full h-24 flex items-center justify-center border border-gray-300 rounded text-gray-400 text-sm">Logo belum diupload</div>';
       } ?>
@@ -55,7 +57,7 @@ $logoPath = 'assets/logo.jpg';
         'pekerja' => 'Pekerja Lepas',
         'distribusi' => 'Distribusi dan Permintaan',
         'laporan' => 'Laporan',
-        'coba' => 'coba',
+        // 'coba' => 'coba',
       ];
 
       foreach ($menuItems as $key => $label) {

@@ -1,575 +1,314 @@
-<?php include 'auth.php';
+<?php
+// =================================================================
+// BAGIAN LOGIKA & KONEKSI DATABASE (PHP)
+// =================================================================
 
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
+include 'auth.php';
+include 'koneksi.php';
 if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
-    header("Location: ../Index.php?page=pekerja");
-    exit;
+  header("Location: ../Index.php?page=pekerja");
+  exit;
 }
 
-$pekerja_list = [
-  [
-    "nama" => "Siti",
-    "jenis_pekerjaan" => "Pengemasan",
-    "jumlah_produk" => 100,
-    "upah" => 50000
-  ],
-];
+// --- FUNGSI HELPER UNTUK UPDATE STATUS PEKERJA SECARA OTOMATIS ---
+function updateStatusPekerja($pdo, $id_pekerja)
+{
+  // Cek apakah masih ada riwayat gaji yang belum dibayar untuk pekerja ini
+  $sql_check = "SELECT COUNT(*) FROM riwayat_gaji WHERE id_pekerja = ? AND keterangan = 'Belum Dibayar'";
+  $stmt_check = $pdo->prepare($sql_check);
+  $stmt_check->execute([$id_pekerja]);
+  $belum_dibayar_count = $stmt_check->fetchColumn();
 
+  // Tentukan status baru
+  $new_status = ($belum_dibayar_count == 0) ? 'Dibayar' : 'Belum Dibayar';
+
+  // Update status di tabel pekerja_lepas
+  $sql_update = "UPDATE pekerja_lepas SET status_pembayaran = ? WHERE id_pekerja = ?";
+  $stmt_update = $pdo->prepare($sql_update);
+  $stmt_update->execute([$new_status, $id_pekerja]);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $action = $_POST['action'] ?? '';
+  try {
+    switch ($action) {
+      case 'tambah_pekerja':
+        $sql = "INSERT INTO pekerja_lepas (nama_pekerja, kontak, alamat, status_pembayaran, id_admin) VALUES (?, ?, ?, 'Belum Dibayar', 1)";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$_POST['nama_pekerja'], $_POST['kontak'], $_POST['alamat']]);
+        $_SESSION['notif'] = ['pesan' => 'Data pekerja berhasil ditambahkan!', 'tipe' => 'sukses'];
+        break;
+
+      case 'edit_pekerja':
+        // --- [UBAH] --- Status pembayaran tidak lagi di-edit secara manual di sini
+        $sql = "UPDATE pekerja_lepas SET nama_pekerja = ?, kontak = ?, alamat = ? WHERE id_pekerja = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$_POST['nama_pekerja'], $_POST['kontak'], $_POST['alamat'], $_POST['id_pekerja_edit']]);
+        $_SESSION['notif'] = ['pesan' => 'Data pekerja berhasil diperbarui!', 'tipe' => 'sukses'];
+        break;
+
+      case 'tambah_gaji_riwayat':
+        $pdo->beginTransaction();
+        try {
+          $id_pekerja_gaji = $_POST['id_pekerja_gaji'];
+          $sql_insert = "INSERT INTO riwayat_gaji (id_pekerja, tanggal, berat_barang_kg, tarif_per_kg, total_gaji, keterangan) VALUES (?, ?, ?, ?, ?, ?)";
+          $stmt_insert = $pdo->prepare($sql_insert);
+          $stmt_insert->execute([$id_pekerja_gaji, $_POST['tanggal'], $_POST['berat_barang_kg'], $_POST['tarif_per_kg'], $_POST['total_gaji'], $_POST['keterangan']]);
+
+          // --- [UBAH] --- Panggil fungsi helper untuk update status
+          updateStatusPekerja($pdo, $id_pekerja_gaji);
+
+          $pdo->commit();
+          $_SESSION['notif'] = ['pesan' => 'Riwayat gaji berhasil ditambahkan!', 'tipe' => 'sukses'];
+        } catch (Exception $e) {
+          $pdo->rollBack();
+          $_SESSION['notif'] = ['pesan' => 'Gagal menyimpan data: ' . $e->getMessage(), 'tipe' => 'error'];
+        }
+        break;
+
+      case 'hapus_pekerja':
+        $sql = "DELETE FROM pekerja_lepas WHERE id_pekerja = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$_POST['id_pekerja_hapus']]);
+        $_SESSION['notif'] = ['pesan' => 'Data pekerja berhasil dihapus.', 'tipe' => 'sukses'];
+        break;
+    }
+  } catch (PDOException $e) {
+    $_SESSION['notif'] = ['pesan' => 'Terjadi kesalahan database: ' . $e->getMessage(), 'tipe' => 'error'];
+  }
+
+  $search_query = isset($_GET['search']) ? '&search=' . urlencode($_GET['search']) : '';
+  header("Location: Index.php?page=pekerja" . $search_query);
+  exit;
+}
+
+// =================================================================
+// PENGAMBILAN DATA DARI DATABASE (READ)
+// =================================================================
+
+$search_term = $_GET['search'] ?? '';
+// --- [UBAH TOTAL] --- Query untuk mendapatkan total dibayar dan belum dibayar per pekerja
+$sql_pekerja = "SELECT 
+                    pl.*, 
+                    (SELECT SUM(rg.total_gaji) FROM riwayat_gaji rg WHERE rg.id_pekerja = pl.id_pekerja AND rg.keterangan = 'Dibayar') as total_dibayar,
+                    (SELECT SUM(rg.total_gaji) FROM riwayat_gaji rg WHERE rg.id_pekerja = pl.id_pekerja AND rg.keterangan = 'Belum Dibayar') as total_belum_dibayar
+                FROM 
+                    pekerja_lepas pl";
+$params = [];
+if (!empty($search_term)) {
+  $sql_pekerja .= " WHERE pl.nama_pekerja LIKE ?";
+  $params[] = "%" . $search_term . "%";
+}
+$sql_pekerja .= " ORDER BY pl.nama_pekerja ASC";
+$stmt = $pdo->prepare($sql_pekerja);
+$stmt->execute($params);
+$pekerja_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// --- [UBAH TOTAL] --- Menghitung ringkasan total dari tabel riwayat_gaji
+$sql_summary = "SELECT keterangan, SUM(total_gaji) as total_per_keterangan FROM riwayat_gaji GROUP BY keterangan";
+$summary_list = $pdo->query($sql_summary)->fetchAll(PDO::FETCH_KEY_PAIR);
+$summary_dibayar = $summary_list['Dibayar'] ?? 0;
+$summary_belum_dibayar = $summary_list['Belum Dibayar'] ?? 0;
 ?>
 
-<style>
-    /* Custom scrollbar for sidebar */
-    ::-webkit-scrollbar {
-      width: 6px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background-color: rgba(100, 100, 100, 0.3);
-      border-radius: 3px;
-    }
-    /* Overlay styles */
-    #overlay, #addWorkerOverlay, #editWorkerOverlay, #deleteOverlay {
-      background-color: rgba(0, 0, 0, 0.5);
-    }
-    /* Delete dialog as layer */
-    #deleteDialog {
-      background-color: white;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      border-radius: 0.375rem; /* rounded */
-      border: 1px solid #d1d5db; /* gray-300 */
-      padding: 1.25rem; /* p-5 */
-      width: 280px;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 110;
-      display: none;
-    }
-  </style>
-  <script>
-    let currentEditRow = null;
+<main class="flex-1 bg-gray-100">
+  <section class="p-6 overflow-x-auto">
+    <?php if (isset($_SESSION['notif'])): ?>
+      <div class="mb-4 p-4 rounded-md text-white font-bold <?php echo $_SESSION['notif']['tipe'] === 'sukses' ? 'bg-green-500' : 'bg-red-500'; ?>"><?php echo htmlspecialchars($_SESSION['notif']['pesan']); ?></div>
+    <?php unset($_SESSION['notif']);
+    endif; ?>
 
-    function openGajiLayer() {
-      document.getElementById('overlay').classList.remove('hidden');
-      document.getElementById('gajiLayer').classList.remove('hidden');
-      dimMainContent(true);
-    }
-    function closeGajiLayer() {
-      document.getElementById('overlay').classList.add('hidden');
-      document.getElementById('gajiLayer').classList.add('hidden');
-      dimMainContent(false);
-    }
+    <div class="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
+      <button id="btnTambahPekerja" class="flex-shrink-0 inline-flex items-center gap-2 bg-[#2f4ea1] text-white text-sm font-normal px-4 py-2 rounded shadow-sm hover:shadow-md transition-shadow mb-2 md:mb-0" type="button"><i class="fas fa-plus"></i> Tambah Pekerja</button>
+      <form action="Index.php" method="GET" class="flex flex-1 max-w-md">
+        <input type="hidden" name="page" value="pekerja"><input type="text" name="search" placeholder="Cari nama pekerja..." class="flex-grow border border-gray-300 rounded-l px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2f4ea1]" value="<?php echo htmlspecialchars($search_term); ?>"><button type="submit" class="bg-[#2f4ea1] text-white px-6 py-2 rounded-r shadow-sm hover:shadow-md transition-shadow">Cari</button>
+      </form>
+    </div>
 
-    function openDeleteDialog() {
-      document.getElementById('deleteOverlay').classList.remove('hidden');
-      document.getElementById('deleteDialog').style.display = 'block';
-      dimMainContent(true);
-    }
-    function closeDeleteDialog() {
-      document.getElementById('deleteOverlay').classList.add('hidden');
-      document.getElementById('deleteDialog').style.display = 'none';
-      dimMainContent(false);
-    }
-
-    function openAddWorker() {
-      document.getElementById('addWorkerOverlay').classList.remove('hidden');
-      document.getElementById('addWorkerDialog').classList.remove('hidden');
-      dimMainContent(true);
-    }
-    function closeAddWorker() {
-      document.getElementById('addWorkerOverlay').classList.add('hidden');
-      document.getElementById('addWorkerDialog').classList.add('hidden');
-      dimMainContent(false);
-    }
-
-    function openEditWorker(row) {
-      currentEditRow = row;
-      // Get data from the row
-      const cells = row.querySelectorAll('td');
-      const nama = cells[1].textContent.trim();
-      const kontak = cells[2].textContent.trim();
-      const alamat = cells[3].textContent.trim();
-
-      // Set values in the edit form
-      document.getElementById('editNama').value = nama;
-      document.getElementById('editKontak').value = kontak;
-      document.getElementById('editAlamat').value = alamat;
-
-      document.getElementById('editWorkerOverlay').classList.remove('hidden');
-      document.getElementById('editWorkerDialog').classList.remove('hidden');
-      dimMainContent(true);
-    }
-    function closeEditWorker() {
-      document.getElementById('editWorkerOverlay').classList.add('hidden');
-      document.getElementById('editWorkerDialog').classList.add('hidden');
-      dimMainContent(false);
-      currentEditRow = null;
-      document.getElementById('editWorkerMessage').classList.add('hidden');
-    }
-
-    function parseRupiah(str) {
-      return Number(str.replace(/[^0-9,-]+/g,"").replace(",","."));
-    }
-
-    function formatRupiah(num) {
-      return "Rp. " + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    }
-
-    function updateTotals() {
-      const rows = document.querySelectorAll("#dataTable tbody tr");
-      let totalGaji = 0;
-      let totalDibayar = 0;
-      let totalBelumDibayar = 0;
-
-      rows.forEach(row => {
-        const gajiText = row.querySelector("td:nth-child(5)").textContent.trim();
-        const statusText = row.querySelector("td:nth-child(6)").textContent.trim();
-
-        if(gajiText){
-          const gaji = parseRupiah(gajiText);
-          totalGaji += gaji;
-          if(statusText === "Dibayar"){
-            totalDibayar += gaji;
-          } else if(statusText === "Belum Dibayar"){
-            totalBelumDibayar += gaji;
-          }
-        }
-      });
-
-      document.getElementById("totalGaji").textContent = formatRupiah(totalGaji);
-      document.getElementById("totalDibayar").textContent = formatRupiah(totalDibayar);
-      document.getElementById("totalBelumDibayar").textContent = formatRupiah(totalBelumDibayar);
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      updateTotals();
-
-      // Attach edit button event listeners dynamically
-      document.querySelectorAll('.editBtn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const row = this.closest('tr');
-          openEditWorker(row);
-        });
-      });
-
-      // Attach delete button event listeners dynamically
-      document.querySelectorAll('.deleteBtn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          openDeleteDialog();
-        });
-      });
-    });
-
-    // Handle form submission for Add Worker dialog (simulate PHP behavior)
-    document.addEventListener('submit', function(e) {
-      if(e.target && e.target.id === 'addWorkerForm') {
-        e.preventDefault();
-        const nama = e.target.nama.value.trim();
-        const kontak = e.target.kontak.value.trim();
-        const alamat = e.target.alamat.value.trim();
-        if(nama && kontak && alamat){
-          const msg = document.getElementById('addWorkerMessage');
-          msg.innerHTML = `Data berhasil disimpan: <br>Nama: ${nama}<br>Kontak: ${kontak}<br>Alamat: ${alamat}`;
-          msg.classList.remove('hidden');
-          e.target.reset();
-        }
-      }
-      if(e.target && e.target.id === 'editWorkerForm') {
-        e.preventDefault();
-        if(!currentEditRow) return;
-        const nama = e.target.nama.value.trim();
-        const kontak = e.target.kontak.value.trim();
-        const alamat = e.target.alamat.value.trim();
-        if(nama && kontak && alamat){
-          // Update the table row with new values
-          const cells = currentEditRow.querySelectorAll('td');
-          cells[1].textContent = nama;
-          cells[2].textContent = kontak;
-          cells[3].textContent = alamat;
-
-          const msg = document.getElementById('editWorkerMessage');
-          msg.innerHTML = `Data berhasil disimpan: <br>Nama: ${nama}<br>Kontak: ${kontak}<br>Alamat: ${alamat}`;
-          msg.classList.remove('hidden');
-        }
-      }
-    });
-
-    // Add effect to dim main content when any modal/dialog is open
-    function dimMainContent(dim) {
-      const mainContent = document.getElementById('mainContent');
-      if(dim) {
-        mainContent.classList.add('opacity-50', 'pointer-events-none');
-      } else {
-        mainContent.classList.remove('opacity-50', 'pointer-events-none');
-      }
-    }
-  </script>
-      <!-- Content -->
-      <section id="mainContent" class="flex-1 p-8 overflow-auto transition-opacity duration-300">
-        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
-          <button
-            class="flex items-center gap-2 bg-[#2f4ea1] text-white text-sm font-normal px-4 py-2 rounded shadow-sm hover:shadow-md transition-shadow mb-4 md:mb-0"
-            type="button"
-            onclick="openAddWorker()"
-          >
-            <i class="fas fa-plus"></i> Tambah Pekerja
-          </button>
-          <form class="flex flex-1 max-w-md" onsubmit="return false;">
-            <input
-              type="text"
-              placeholder=""
-              class="flex-grow border border-gray-300 rounded-l px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2f4ea1]"
-            />
-            <button
-              type="submit"
-              class="bg-[#2f4ea1] text-white px-6 py-2 rounded-r shadow-sm hover:shadow-md transition-shadow"
-            >
-              Cari
-            </button>
-          </form>
-        </div>
-
-        <table id="dataTable" class="w-full border border-gray-300 text-sm text-left">
-          <thead class="bg-[#bdd4f2] text-xs text-gray-900">
+    <table class="w-full border border-gray-300 text-sm bg-white text-left">
+      <thead class="bg-[#bdd4f2] text-xs text-gray-900">
+        <tr>
+          <th class="border border-gray-300 px-3 py-2 w-12">No.</th>
+          <th class="border border-gray-300 px-3 py-2 w-40">Nama</th>
+          <th class="border border-gray-300 px-3 py-2 w-32">Kontak</th>
+          <th class="border border-gray-300 px-3 py-2 w-40">Total Dibayar</th>
+          <th class="border border-gray-300 px-3 py-2 w-40">Total Belum Dibayar</th>
+          <th class="border border-gray-300 px-3 py-2 w-40">Status Pekerja</th>
+          <th class="border border-gray-300 px-3 py-2 w-52">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (empty($pekerja_list)): ?>
+          <tr>
+            <td colspan="7" class="border border-gray-300 px-3 py-4 text-center text-gray-500">Data pekerja tidak ditemukan.</td>
+          </tr>
+        <?php else: ?>
+          <?php foreach ($pekerja_list as $index => $pekerja): ?>
             <tr>
-              <th class="border border-gray-300 px-3 py-2 w-12">No.</th>
-              <th class="border border-gray-300 px-3 py-2 w-36">Nama</th>
-              <th class="border border-gray-300 px-3 py-2 w-36">Kontak</th>
-              <th class="border border-gray-300 px-3 py-2 w-44">Alamat</th>
-              <th class="border border-gray-300 px-3 py-2 w-28">Gaji</th>
-              <th class="border border-gray-300 px-3 py-2 w-28">
-                <div>Status</div>
-                <div>Pembayaran</div>
-              </th>
-              <th class="border border-gray-300 px-3 py-2 w-44">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="border border-gray-300 px-3 py-2 align-top">1.</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">Ian Sopian</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">081222666444</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">Wonosobo, 03/04</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">Rp. 250.000</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">Dibayar</td>
-              <td class="border border-gray-300 px-3 py-2 align-top space-x-1 flex items-center">
-                <button
-                  class="bg-[#2f4ea1] text-white text-xs font-normal px-2 py-1 rounded shadow-sm hover:shadow-md transition-shadow inline-flex items-center gap-1 order-1"
-                  type="button"
-                  onclick="openGajiLayer()"
-                >
-                  <i class="fas fa-plus"></i> Gaji
-                </button>
-                <button
-                  class="bg-[#2f4ea1] text-white text-xs font-normal px-3 py-1 rounded shadow-sm hover:shadow-md transition-shadow order-2"
-                  type="button"
-                  class="editBtn"
-                  onclick="openEditWorker(this.closest('tr'))"
-                >
-                  Edit
-                </button>
-                <button
-                  class="bg-red-700 text-white text-xs font-normal px-3 py-1 rounded shadow-sm hover:shadow-md transition-shadow order-3"
-                  type="button"
-                  class="deleteBtn"
-                  onclick="openDeleteDialog()"
-                >
-                  Hapus
-                </button>
+              <td class="border border-gray-300 px-3 py-2"><?php echo $index + 1; ?>.</td>
+              <td class="border border-gray-300 px-3 py-2"><?php echo htmlspecialchars($pekerja['nama_pekerja']); ?></td>
+              <td class="border border-gray-300 px-3 py-2"><?php echo htmlspecialchars($pekerja['kontak']); ?></td>
+              <td class="border border-gray-300 px-3 py-2 text-green-700">Rp. <?php echo number_format($pekerja['total_dibayar'] ?? 0, 0, ',', '.'); ?></td>
+              <td class="border border-gray-300 px-3 py-2 text-red-700">Rp. <?php echo number_format($pekerja['total_belum_dibayar'] ?? 0, 0, ',', '.'); ?></td>
+              <td class="border border-gray-300 px-3 py-2"><span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo $pekerja['status_pembayaran'] == 'Dibayar' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?>"><?php echo htmlspecialchars($pekerja['status_pembayaran']); ?></span></td>
+              <td class="border border-gray-300 px-3 py-2 space-x-1 flex items-center justify-center ">
+                <a href="Index.php?page=riwayat_gaji&id_pekerja=<?php echo $pekerja['id_pekerja']; ?>" class="btnHistory bg-gray-500 text-white text-xs px-3 py-1 rounded inline-block">Riwayat</a>
+                <button class="btnGaji bg-green-600 text-white text-xs px-2 py-1 rounded inline-flex items-center gap-1" data-id-pekerja="<?php echo $pekerja['id_pekerja']; ?>" data-nama-pekerja="<?php echo htmlspecialchars($pekerja['nama_pekerja']); ?>"><i class="fas fa-plus"></i> Gaji</button>
+                <button class="btnEdit bg-[#2f4ea1] text-white text-xs px-3 py-1 rounded" data-id-pekerja="<?php echo $pekerja['id_pekerja']; ?>" data-nama="<?php echo htmlspecialchars($pekerja['nama_pekerja']); ?>" data-kontak="<?php echo htmlspecialchars($pekerja['kontak']); ?>" data-alamat="<?php echo htmlspecialchars($pekerja['alamat']); ?>">Edit</button>
+                <button class="btnHapus bg-red-700 text-white text-xs px-3 py-1 rounded" data-id-pekerja="<?php echo $pekerja['id_pekerja']; ?>">Hapus</button>
               </td>
             </tr>
-            <tr>
-              <td class="border border-gray-300 px-3 py-2 align-top">2.</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">Dinda</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">081566667777</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">Wonosobo, 03/04</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">Rp. 300.000</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">Belum Dibayar</td>
-              <td class="border border-gray-300 px-3 py-2 align-top space-x-1 flex items-center">
-                <button
-                  class="bg-[#2f4ea1] text-white text-xs font-normal px-2 py-1 rounded shadow-sm hover:shadow-md transition-shadow inline-flex items-center gap-1 order-1"
-                  type="button"
-                  onclick="openGajiLayer()"
-                >
-                  <i class="fas fa-plus"></i> Gaji
-                </button>
-                <button
-                  class="bg-[#2f4ea1] text-white text-xs font-normal px-3 py-1 rounded shadow-sm hover:shadow-md transition-shadow order-2"
-                  type="button"
-                  class="editBtn"
-                  onclick="openEditWorker(this.closest('tr'))"
-                >
-                  Edit
-                </button>
-                <button
-                  class="bg-red-700 text-white text-xs font-normal px-3 py-1 rounded shadow-sm hover:shadow-md transition-shadow order-3"
-                  type="button"
-                  class="deleteBtn"
-                  onclick="openDeleteDialog()"
-                >
-                  Hapus
-                </button>
-              </td>
-            </tr>
-            <tr>
-              <td class="border border-gray-300 px-3 py-2 align-top">&nbsp;</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">&nbsp;</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">&nbsp;</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">&nbsp;</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">&nbsp;</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">&nbsp;</td>
-              <td class="border border-gray-300 px-3 py-2 align-top">&nbsp;</td>
-            </tr>
-          </tbody>
-        </table>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </tbody>
+    </table>
 
-        <table class="w-full border border-gray-300 text-xs mt-2">
-          <thead>
-            <tr class="bg-[#bdd4f2] text-gray-900">
-              <th class="border border-gray-300 px-3 py-1 text-center" colspan="2">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="border border-gray-300 px-3 py-1 w-1/2">Gaji Pekerja</td>
-              <td id="totalGaji" class="border border-gray-300 px-3 py-1 w-1/2">Rp. 550.000</td>
-            </tr>
-            <tr>
-              <td class="border border-gray-300 px-3 py-1">Dibayar</td>
-              <td id="totalDibayar" class="border border-gray-300 px-3 py-1">Rp. 250.000</td>
-            </tr>
-            <tr>
-              <td class="border border-gray-300 px-3 py-1">Belum Dibayar</td>
-              <td id="totalBelumDibayar" class="border border-gray-300 px-3 py-1">Rp. 300.000</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+    <table class="w-full max-w-sm border border-gray-300 text-sm mt-4 bg-white">
+      <thead class="bg-[#bdd4f2] text-gray-900 text-xs">
+        <tr>
+          <th class="border border-gray-300 px-3 py-1 text-center" colspan="2">Ringkasan Finansial</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="border border-gray-300 px-3 py-1 font-medium">Total Gaji (Status: Dibayar)</td>
+          <td class="border border-gray-300 px-3 py-1">Rp. <?php echo number_format($summary_dibayar, 0, ',', '.'); ?></td>
+        </tr>
+        <tr>
+          <td class="border border-gray-300 px-3 py-1 font-medium">Total Gaji (Status: Belum Dibayar)</td>
+          <td class="border border-gray-300 px-3 py-1">Rp. <?php echo number_format($summary_belum_dibayar, 0, ',', '.'); ?></td>
+        </tr>
+        <tr class="bg-gray-50">
+          <td class="border border-gray-300 px-3 py-1 font-bold">Total Pekerja</td>
+          <td class="border border-gray-300 px-3 py-1 font-bold"><?php echo count($pekerja_list); ?> Orang</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
 
-      <!-- Overlay for Gaji Layer -->
-      <div
-        id="overlay"
-        class="hidden fixed inset-0 z-40"
-        onclick="closeGajiLayer()"
-        aria-hidden="true"
-      ></div>
+  <div id="modalGaji" class="fixed inset-0 bg-black bg-opacity-50 flex hidden items-center justify-center z-50">
+    <form action="" method="POST" class="bg-white p-6 shadow-md rounded w-80 relative">
+      <button type="button" class="btnClose absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl font-bold">&times;</button>
+      <h2 class="text-black font-semibold text-lg mb-1">Tambah Gaji</h2>
+      <p class="text-sm text-gray-600 mb-4" id="namaPekerjaGaji"></p>
+      <input type="hidden" name="action" value="tambah_gaji_riwayat"><input type="hidden" name="id_pekerja_gaji" id="id_pekerja_gaji"><input type="hidden" name="tarif_per_kg" id="tarif_per_kg" value="2500"><input type="hidden" name="total_gaji" id="total_gaji_hidden">
+      <div class="mb-4"><label for="tanggal" class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label><input type="date" name="tanggal" id="tanggal" class="w-full px-3 py-2 border border-gray-300 rounded" required /></div>
+      <div class="mb-4"><label for="berat_barang_kg" class="block text-sm font-medium text-gray-700 mb-1">Berat (Kg)</label><input type="number" step="0.1" name="berat_barang_kg" id="berat_barang_kg" placeholder="e.g., 10.5" class="w-full px-3 py-2 border border-gray-300 rounded" required /></div>
+      <div class="mb-2 text-sm">Tarif per Kg: <span class="font-mono">Rp. 2.500</span></div>
+      <div class="mb-4 text-sm">Total Gaji: <span class="font-mono font-bold" id="total_gaji_display">Rp. 0</span></div>
+      <div class="mb-6"><label for="keterangan" class="block text-sm font-medium text-gray-700 mb-1">Keterangan Pembayaran</label><select name="keterangan" id="keterangan" class="w-full px-3 py-2 border border-gray-300 rounded">
+          <option value="Dibayar">Dibayar</option>
+          <option value="Belum Dibayar">Belum Dibayar</option>
+        </select></div>
+      <button type="submit" class="w-full bg-blue-700 text-white py-2 rounded">Simpan</button>
+    </form>
+  </div>
 
-      <!-- Gaji Layer -->
-      <div
-        id="gajiLayer"
-        class="hidden fixed inset-0 z-50 flex items-center justify-center p-6"
-        aria-modal="true"
-        role="dialog"
-        aria-labelledby="gajiTitle"
-      >
-        <div class="max-w-xs w-full border border-gray-300 rounded shadow-sm p-5 bg-white relative" onclick="event.stopPropagation()">
-          <h2 id="gajiTitle" class="font-bold text-lg mb-4">Tambah Gaji</h2>
-          <form method="post" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" class="space-y-4">
-            <div>
-              <div class="relative">
-                <input
-                  type="date"
-                  name="tanggal"
-                  placeholder="Masukkan Tanggal"
-                  class="w-full border border-gray-300 rounded px-3 py-2 text-gray-400 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                  required
-                />
-                <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-            <div class="flex space-x-2">
-              <input
-                type="text"
-                name="berat_barang"
-                placeholder="Berat Barang"
-                class="flex-grow border border-gray-300 rounded px-3 py-2 text-gray-500 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                required
-              />
-              <div class="border border-gray-300 rounded px-3 py-2 flex items-center text-gray-700 select-none">Kg</div>
-            </div>
-            <div class="flex justify-between items-center text-gray-700 text-sm">
-              <span>Tarif per Kg</span>
-              <span>Rp. 2.500</span>
-            </div>
-            <div class="flex justify-between items-center text-gray-700 text-sm mb-1">
-              <span>Total Gaji</span>
-              <input
-                type="text"
-                name="total_gaji"
-                value="Rp. 250.000"
-                class="border border-gray-300 rounded px-3 py-1 text-gray-700 text-right w-32 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                required
-              />
-            </div>
-            <select name="keterangan" class="w-full border border-gray-300 rounded px-3 py-2 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400" required>
-              <option value="" disabled selected>Keterangan</option>
-              <option value="Belum Dibayar">Belum Dibayar</option>
-              <option value="Dibayar">Dibayar</option>
-            </select>
-          </form>
-          <button
-            type="button"
-            onclick="closeGajiLayer()"
-            class="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-            aria-label="Close"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
+  <div id="modalTambah" class="fixed inset-0 bg-black bg-opacity-50 flex hidden items-center justify-center z-50">
+    <form action="" method="POST" class="bg-white p-6 shadow-md rounded w-80 relative">
+      <button type="button" class="btnClose absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl font-bold">&times;</button>
+      <h2 class="text-black font-semibold text-lg mb-4">Tambah Pekerja Baru</h2>
+      <input type="hidden" name="action" value="tambah_pekerja">
+      <div class="mb-4"><label for="nama_pekerja_tambah" class="block text-sm font-medium text-gray-700 mb-1">Nama</label><input type="text" name="nama_pekerja" id="nama_pekerja_tambah" class="w-full px-3 py-2 border border-gray-300 rounded" required /></div>
+      <div class="mb-4"><label for="kontak_tambah" class="block text-sm font-medium text-gray-700 mb-1">Kontak</label><input type="text" name="kontak" id="kontak_tambah" class="w-full px-3 py-2 border border-gray-300 rounded" required /></div>
+      <div class="mb-6"><label for="alamat_tambah" class="block text-sm font-medium text-gray-700 mb-1">Alamat</label><textarea name="alamat" id="alamat_tambah" class="w-full px-3 py-2 border border-gray-300 rounded" required></textarea></div>
+      <button type="submit" class="w-full bg-blue-700 text-white py-2 rounded">Simpan</button>
+    </form>
+  </div>
 
-      <!-- Overlay for Delete Dialog -->
-      <div
-        id="deleteOverlay"
-        class="hidden fixed inset-0 z-105"
-        onclick="closeDeleteDialog()"
-        aria-hidden="true"
-      ></div>
+  <div id="modalEdit" class="fixed inset-0 bg-black bg-opacity-50 flex hidden items-center justify-center z-50">
+    <form action="" method="POST" class="bg-white p-6 shadow-md rounded w-80 relative">
+      <button type="button" class="btnClose absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl font-bold">&times;</button>
+      <h2 class="text-black font-semibold text-lg mb-4">Edit Data Pekerja</h2>
+      <input type="hidden" name="action" value="edit_pekerja"><input type="hidden" name="id_pekerja_edit" id="id_pekerja_edit">
+      <div class="mb-4"><label for="nama_pekerja_edit" class="block text-sm font-medium text-gray-700 mb-1">Nama</label><input type="text" name="nama_pekerja" id="nama_pekerja_edit" class="w-full px-3 py-2 border border-gray-300 rounded" required /></div>
+      <div class="mb-4"><label for="kontak_edit" class="block text-sm font-medium text-gray-700 mb-1">Kontak</label><input type="text" name="kontak" id="kontak_edit" class="w-full px-3 py-2 border border-gray-300 rounded" required /></div>
+      <div class="mb-6"><label for="alamat_edit" class="block text-sm font-medium text-gray-700 mb-1">Alamat</label><textarea name="alamat" id="alamat_edit" class="w-full px-3 py-2 border border-gray-300 rounded" required></textarea></div>
+      <button type="submit" class="w-full bg-blue-700 text-white py-2 rounded">Simpan Perubahan</button>
+    </form>
+  </div>
 
-      <!-- Delete Dialog as Layer -->
-      <div
-        id="deleteDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="deleteTitle"
-        onclick="event.stopPropagation()"
-      >
-        <h2 id="deleteTitle" class="font-semibold text-black mb-3 text-base">Hapus Data</h2>
-        <p class="text-black mb-5 text-sm leading-relaxed">Apakah anda yakin akan menghapus data ini?</p>
-        <div class="flex space-x-3">
-          <button class="bg-[#B22222] text-white text-sm font-normal rounded px-4 py-2" onclick="alert('Data dihapus (simulasi)'); closeDeleteDialog();">Hapus</button>
-          <button class="border border-gray-400 text-black text-sm font-normal rounded px-4 py-2" onclick="closeDeleteDialog()">Batal</button>
-        </div>
-      </div>
+  <div id="modalHapus" class="fixed inset-0 bg-black bg-opacity-50 flex hidden items-center justify-center z-50">
+    <div class="w-[320px] border p-6 bg-white rounded-md relative">
+      <button type="button" class="btnClose absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl font-bold">&times;</button>
+      <h2 class="font-semibold text-black mb-3 text-lg">Konfirmasi Hapus</h2>
+      <p class="text-gray-700 mb-5 text-sm">Data pekerja dan seluruh riwayat gajinya akan dihapus permanen.</p>
+      <form action="" method="POST" class="flex justify-end space-x-3">
+        <input type="hidden" name="action" value="hapus_pekerja"><input type="hidden" name="id_pekerja_hapus" id="id_pekerja_hapus">
+        <button type="button" class="btnCancelHapus border border-gray-400 text-black text-sm font-medium rounded px-4 py-2 hover:bg-gray-100">Batal</button>
+        <button type="submit" class="bg-red-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-red-700">Ya, Hapus</button>
+      </form>
+    </div>
+  </div>
+</main>
 
-      <!-- Overlay for Add Worker Dialog -->
-      <div
-        id="addWorkerOverlay"
-        class="hidden fixed inset-0 z-70"
-        onclick="closeAddWorker()"
-        aria-hidden="true"
-      ></div>
-
-      <!-- Add Worker Dialog -->
-      <div
-        id="addWorkerDialog"
-        class="hidden fixed inset-0 z-80 flex items-center justify-center p-6"
-        aria-modal="true"
-        role="dialog"
-        aria-labelledby="addWorkerTitle"
-      >
-        <div class="w-72 p-6 border border-gray-300 shadow-md bg-white relative" onclick="event.stopPropagation()">
-          <button
-            type="button"
-            onclick="closeAddWorker()"
-            aria-label="Close"
-            class="absolute top-3 right-3 text-gray-700 hover:text-gray-900 text-lg font-bold"
-          >
-            &times;
-          </button>
-          <h2 id="addWorkerTitle" class="font-bold text-lg mb-4">Tambah Pekerja</h2>
-          <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="POST" id="addWorkerForm">
-            <input
-              type="text"
-              name="nama"
-              placeholder="Nama"
-              class="w-full mb-4 px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              required
-            />
-            <input
-              type="text"
-              name="kontak"
-              placeholder="Kontak"
-              class="w-full mb-4 px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              required
-            />
-            <input
-              type="text"
-              name="alamat"
-              placeholder="Alamat"
-              class="w-full mb-6 px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              required
-            />
-            <div class="flex justify-center">
-              <button
-                type="submit"
-                name="submit"
-                class="bg-blue-700 text-white px-10 py-2 rounded text-sm w-36 text-center"
-              >
-                Simpan
-              </button>
-            </div>
-          </form>
-          <div id="addWorkerMessage" class="mt-4 text-green-600 text-sm hidden"></div>
-        </div>
-      </div>
-
-      <!-- Overlay for Edit Worker Dialog -->
-      <div
-        id="editWorkerOverlay"
-        class="hidden fixed inset-0 z-90"
-        onclick="closeEditWorker()"
-        aria-hidden="true"
-      ></div>
-
-      <!-- Edit Worker Dialog -->
-      <div
-        id="editWorkerDialog"
-        class="hidden fixed inset-0 z-100 flex items-center justify-center p-6"
-        aria-modal="true"
-        role="dialog"
-        aria-labelledby="editWorkerTitle"
-      >
-        <div class="w-72 p-6 border border-gray-300 shadow-md bg-white relative" onclick="event.stopPropagation()">
-          <button
-            type="button"
-            onclick="closeEditWorker()"
-            aria-label="Close"
-            class="absolute top-3 right-3 text-gray-700 hover:text-gray-900 text-lg font-bold"
-          >
-            &times;
-          </button>
-          <h2 id="editWorkerTitle" class="font-bold text-lg mb-4">Edit Pekerja</h2>
-          <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="POST" id="editWorkerForm">
-            <input
-              type="text"
-              id="editNama"
-              name="nama"
-              placeholder="Nama"
-              class="w-full mb-4 px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              required
-            />
-            <input
-              type="text"
-              id="editKontak"
-              name="kontak"
-              placeholder="Kontak"
-              class="w-full mb-4 px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              required
-            />
-            <input
-              type="text"
-              id="editAlamat"
-              name="alamat"
-              placeholder="Alamat"
-              class="w-full mb-6 px-3 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              required
-            />
-            <div class="flex justify-center">
-              <button
-                type="submit"
-                name="submit"
-                class="bg-blue-700 text-white px-10 py-2 rounded text-sm w-36 text-center"
-              >
-                Simpan
-              </button>
-            </div>
-          </form>
-          <div id="editWorkerMessage" class="mt-4 text-green-600 text-sm hidden"></div>
-        </div>
-      </div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const modals = {
+      tambah: document.getElementById('modalTambah'),
+      edit: document.getElementById('modalEdit'),
+      hapus: document.getElementById('modalHapus'),
+      gaji: document.getElementById('modalGaji'),
+    };
+    const openModal = (modal) => {
+      if (modal) modal.classList.remove('hidden');
+    };
+    const closeModal = (modal) => {
+      if (modal) {
+        modal.classList.add('hidden');
+        if (modal.id === 'modalGaji') {
+          modal.querySelector('form').reset();
+          document.getElementById('total_gaji_display').textContent = 'Rp. 0';
+        }
+      }
+    };
+    document.getElementById('btnTambahPekerja')?.addEventListener('click', () => openModal(modals.tambah));
+    modals.hapus?.querySelector('.btnCancelHapus')?.addEventListener('click', () => closeModal(modals.hapus));
+    Object.values(modals).forEach(modal => {
+      if (!modal) return;
+      modal.querySelector('.btnClose')?.addEventListener('click', () => closeModal(modal));
+      modal.addEventListener('click', e => {
+        if (e.target === modal) closeModal(modal);
+      });
+    });
+    const modalGajiForm = document.getElementById('modalGaji');
+    if (modalGajiForm) {
+      const beratInput = modalGajiForm.querySelector('#berat_barang_kg');
+      const tarifInput = modalGajiForm.querySelector('#tarif_per_kg');
+      const totalGajiDisplay = modalGajiForm.querySelector('#total_gaji_display');
+      const totalGajiHidden = modalGajiForm.querySelector('#total_gaji_hidden');
+      beratInput.addEventListener('input', () => {
+        const berat = parseFloat(beratInput.value) || 0;
+        const tarif = parseInt(tarifInput.value) || 0;
+        const total = Math.round(berat * tarif);
+        totalGajiHidden.value = total;
+        totalGajiDisplay.textContent = 'Rp. ' + total.toLocaleString('id-ID');
+      });
+    }
+    document.body.addEventListener('click', function(e) {
+      const target = e.target.closest('button, a');
+      if (!target) return;
+      const data = target.dataset;
+      if (target.classList.contains('btnGaji')) {
+        e.preventDefault();
+        document.getElementById('id_pekerja_gaji').value = data.idPekerja;
+        document.getElementById('namaPekerjaGaji').textContent = `Untuk: ${data.namaPekerja}`;
+        openModal(modals.gaji);
+      } else if (target.classList.contains('btnEdit')) {
+        e.preventDefault();
+        document.getElementById('id_pekerja_edit').value = data.idPekerja;
+        document.getElementById('nama_pekerja_edit').value = data.nama;
+        document.getElementById('kontak_edit').value = data.kontak;
+        document.getElementById('alamat_edit').value = data.alamat;
+        openModal(modals.edit);
+      } else if (target.classList.contains('btnHapus')) {
+        e.preventDefault();
+        document.getElementById('id_pekerja_hapus').value = data.idPekerja;
+        openModal(modals.hapus);
+      }
+    });
+  });
+</script>

@@ -1,15 +1,21 @@
-
-
 <?php
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db   = "fahmi_food"; // Ganti dengan nama database kamu
+// koneksi.php
 
-$koneksi = mysqli_connect($host, $user, $pass, $db);
+$host = '127.0.0.1'; // atau 'localhost'
+$dbname = 'salsa_db';
+$user = 'root';
+$pass = ''; // Sesuaikan dengan password database Anda, jika ada
 
-// Cek koneksi
-if (!$koneksi) {
-    die("Koneksi gagal: " . mysqli_connect_error());
+try {
+    // Buat instance PDO
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);
+
+    // Set mode error PDO ke exception
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // Opsi tambahan untuk memastikan koneksi berjalan baik
+    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+} catch (PDOException $e) {
+    // Tampilkan pesan error jika koneksi gagal
+    die("Koneksi ke database gagal: " . $e->getMessage());
 }
-?>
