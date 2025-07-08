@@ -66,7 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_jadwal'])) {
 $totalPesanan = $pdo->query("SELECT SUM(jumlah_pesanan) FROM distribusi")->fetchColumn() ?: 0;
 $totalProduksi = $pdo->query("SELECT SUM(jumlah_produksi) FROM produksi")->fetchColumn() ?: 0;
 $totalStok = $pdo->query("SELECT SUM(jumlah) FROM stok")->fetchColumn() ?: 0;
-$totalGaji = "2.000.000"; // Tetap statis
+// Hitung total gaji pekerja lepas dari tabel riwayat_gaji
+$totalGaji = $pdo->query("SELECT SUM(total_gaji) FROM riwayat_gaji")->fetchColumn() ?? 0;
 
 // Ambil semua data jadwal untuk ditampilkan di tabel
 $jadwalList = $pdo->query("SELECT * FROM jadwal ORDER BY tanggal DESC, waktu_mulai DESC")->fetchAll(PDO::FETCH_ASSOC);
@@ -266,7 +267,7 @@ $jadwalList = $pdo->query("SELECT * FROM jadwal ORDER BY tanggal DESC, waktu_mul
           </div>
           <div>
             <h3 class="text-sm font-semibold text-gray-500 uppercase">Gaji Pekerja Lepas</h3>
-            <p class="text-2xl font-bold text-gray-800">Rp <?php echo htmlspecialchars($totalGaji); ?></p>
+            <p class="text-2xl font-bold text-gray-800">Rp <?php echo number_format($totalGaji, 0, ',', '.'); ?></p>
           </div>
         </div>
       </div>

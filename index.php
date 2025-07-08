@@ -39,15 +39,15 @@ $logoPath = 'assets/logo.jpg';
 <?php if ($page !== 'login'): ?>
 <div class="flex min-h-screen">
   <!-- Sidebar -->
-  <aside class="w-64 border-r border-gray-300 flex flex-col p-6 bg-white">
-    <div class="mb-12 flex justify-center">
+  <aside class="w-52 border-r border-gray-300 flex flex-col p-4 bg-white sticky top-0 h-screen">
+    <div class="mb-10 flex justify-center">
       <?php if (file_exists($logoPath)) {
-        echo '<img src="' . htmlspecialchars($logoPath) . '" alt="Logo perusahaan" class="max-h-24 w-20 object-contain" />';
+        echo '<img src="' . htmlspecialchars($logoPath) . '" alt="Logo perusahaan" class="max-h-20 w-16 object-contain" />';
       } else {
-        echo '<div class="w-full h-24 flex items-center justify-center border border-gray-300 rounded text-gray-400 text-sm">Logo belum diupload</div>';
+        echo '<div class="w-full h-20 flex items-center justify-center border border-gray-300 rounded text-gray-400 text-sm">Logo belum diupload</div>';
       } ?>
     </div>
-    <nav class="flex flex-col space-y-4">
+    <nav class="flex flex-col space-y-3 text-sm">
       <?php
       $menuItems = [
         'dashboard' => 'Dashboard',
@@ -61,20 +61,20 @@ $logoPath = 'assets/logo.jpg';
 
       foreach ($menuItems as $key => $label) {
         $isActive = ($page === $key) ? 'bg-blue-200 border-blue-400 font-semibold' : 'border-gray-300';
-        echo "<a href='Index.php?page=$key' class='flex items-center justify-center w-full py-3 rounded border $isActive shadow-sm text-black text-base font-normal transition-all hover:bg-blue-100 hover:border-blue-300'>$label</a>";
+        echo "<a href='Index.php?page=$key' class='text-center py-2 rounded border $isActive shadow-sm text-black transition-all hover:bg-blue-100 hover:border-blue-300'>$label</a>";
       }
       ?>
-      <a href="Logout.php" class="flex items-center justify-center w-full py-3 rounded border border-red-300 shadow-sm text-red-600 text-base font-normal transition-all hover:bg-red-100 hover:border-red-400">Logout</a>
+      <a href="Logout.php" class="text-center py-2 rounded border border-red-300 shadow-sm text-red-600 transition-all hover:bg-red-100 hover:border-red-400">Logout</a>
     </nav>
   </aside>
 
   <!-- Main Content -->
   <main class="flex-1 flex flex-col">
-    <header class="bg-[#2f49b7] text-white px-8 py-6 shadow-md">
+    <header class="sticky top-0 bg-[#2f49b7] text-white px-8 py-6 shadow-md z-40">
       <h1 class="text-xl font-normal"><?= ucfirst($page) ?></h1>
     </header>
 
-    <div class="p-8">
+    <div class="p-8 overflow-y-auto">
       <?php
       if (array_key_exists($page, $halaman)) {
         include $halaman[$page];
