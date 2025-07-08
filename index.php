@@ -18,7 +18,6 @@ $halaman = [
   'pekerja'   => 'halaman/Pekerja.php',
   'distribusi'=> 'halaman/Distribusi.php',
   'laporan'   => 'halaman/Laporan.php',
-  'laporan'   => 'halaman/Laporan.php',
   'coba' => 'halaman/coba.php',
   'riwayat_gaji' => 'halaman/RiwayatGaji.php',
 ];

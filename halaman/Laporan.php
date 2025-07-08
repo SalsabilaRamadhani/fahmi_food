@@ -19,18 +19,20 @@ if ($kategori && $periode && $tanggal) {
     $end = getTanggalAkhir($periode, $tanggal);
     switch ($kategori) {
         case 'produksi':
-            $query = "SELECT * FROM produksi WHERE tgl_produksi BETWEEN '$tanggal' AND '$end'";
-            break;
+            $query = "SELECT pr.id_produksi, p.nama_produk AS nama_produk, pr.jumlah_produksi AS jumlah, pr.tgl_produksi AS tanggal 
+          FROM produksi pr 
+          JOIN produk p ON pr.id_produk = p.id_produk 
+          WHERE pr.tgl_produksi BETWEEN '$tanggal' AND '$end'";
+          break;
         case 'stok':
-    $query = "SELECT s.id_stok, s.id_produk, p.nama_produk, s.status_stok, s.jumlah, s.id_admin
-              FROM stok s 
-              JOIN produk p ON s.id_produk = p.id_produk
-              ORDER BY s.id_stok ASC";
-    break;
-
+            $query = "SELECT s.id_stok, s.id_produk, p.nama_produk, s.status_stok, s.jumlah, s.id_admin
+                      FROM stok s 
+                      JOIN produk p ON s.id_produk = p.id_produk
+                      ORDER BY s.id_stok ASC";
             break;
         case 'pekerja_lepas':
-            $query = "SELECT rl.*, pl.nama_pekerja FROM riwayat_gaji rl
+            $query = "SELECT rl.*, pl.nama_pekerja 
+                      FROM riwayat_gaji rl
                       JOIN pekerja_lepas pl ON rl.id_pekerja = pl.id_pekerja
                       WHERE rl.tanggal BETWEEN '$tanggal' AND '$end'";
             break;
@@ -41,9 +43,11 @@ if ($kategori && $periode && $tanggal) {
             $query = "";
     }
 
-    $result = $koneksi->query($query);
-    while ($row = $result->fetch_assoc()) {
-        $data[] = $row;
+    if ($query !== "") {
+        $result = $koneksi->query($query);
+        while ($row = $result->fetch_assoc()) {
+            $data[] = $row;
+        }
     }
 }
 ?>

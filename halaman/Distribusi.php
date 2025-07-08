@@ -14,17 +14,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
   try {
     if ($action === 'tambah') {
-      $stmt = $pdo->prepare("INSERT INTO distribusi (nama_distributor, alamat_distributor, id_produk, jumlah, tgl_pesanan, status_pengiriman, id_admin) VALUES (?, ?, ?, ?, ?, ?, ?)");
+      $stmt = $pdo->prepare("INSERT INTO distribusi (nama_distributor, alamat_distributor, id_produk, jumlah_pesanan, tgl_pesanan, status_pengiriman, id_admin) VALUES (?, ?, ?, ?, ?, ?, ?)");
       $stmt->execute([
         $_POST['nama_distributor'], $_POST['alamat_distributor'], $_POST['id_produk'],
-        $_POST['jumlah'], $_POST['tgl_pesanan'], $_POST['status_pengiriman'], 1
+        $_POST['jumlah_pesanan'], $_POST['tgl_pesanan'], $_POST['status_pengiriman'], 1
       ]);
       $_SESSION['notif'] = ['pesan' => 'Pesanan berhasil ditambahkan!', 'tipe' => 'sukses'];
     } elseif ($action === 'edit') {
-      $stmt = $pdo->prepare("UPDATE distribusi SET nama_distributor=?, alamat_distributor=?, id_produk=?, jumlah=?, tgl_pesanan=?, status_pengiriman=? WHERE id_distribusi=?");
+      $stmt = $pdo->prepare("UPDATE distribusi SET nama_distributor=?, alamat_distributor=?, id_produk=?, jumlah_pesanan=?, tgl_pesanan=?, status_pengiriman=? WHERE id_distribusi=?");
       $stmt->execute([
         $_POST['nama_distributor'], $_POST['alamat_distributor'], $_POST['id_produk'],
-        $_POST['jumlah'], $_POST['tgl_pesanan'], $_POST['status_pengiriman'], $_POST['id_distribusi']
+        $_POST['jumlah_pesanan'], $_POST['tgl_pesanan'], $_POST['status_pengiriman'], $_POST['id_distribusi']
       ]);
       $_SESSION['notif'] = ['pesan' => 'Pesanan berhasil diperbarui!', 'tipe' => 'sukses'];
     } elseif ($action === 'hapus') {
@@ -83,7 +83,7 @@ $produk_options = $pdo->query("SELECT id_produk, nama_produk FROM produk ORDER B
               <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['nama_distributor']) ?></td>
               <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['alamat_distributor']) ?></td>
               <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['nama_produk']) ?></td>
-              <td class="border border-gray-300 px-3 py-2"><?= $d['jumlah'] ?> kg</td>
+              <td class="border border-gray-300 px-3 py-2"><?= $d['jumlah_pesanan'] ?> kg</td>
               <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['tgl_pesanan']) ?></td>
               <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['status_pengiriman']) ?></td>
               <td class="border border-gray-300 px-3 py-2 space-x-2">
@@ -92,7 +92,7 @@ $produk_options = $pdo->query("SELECT id_produk, nama_produk FROM produk ORDER B
                   data-nama="<?= htmlspecialchars($d['nama_distributor']) ?>"
                   data-alamat="<?= htmlspecialchars($d['alamat_distributor']) ?>"
                   data-id_produk="<?= $d['id_produk'] ?>"
-                  data-jumlah="<?= $d['jumlah'] ?>"
+                  data-jumlah="<?= $d['jumlah_pesanan'] ?>"
                   data-tanggal="<?= $d['tgl_pesanan'] ?>"
                   data-status="<?= $d['status_pengiriman'] ?>">Edit</button>
                 <form method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus data ini?')">
@@ -133,7 +133,7 @@ $produk_options = $pdo->query("SELECT id_produk, nama_produk FROM produk ORDER B
       </select>
 
       <label class="block text-sm text-gray-700 mb-1">Jumlah (kg)</label>
-      <input type="number" name="jumlah" id="formJumlah" required class="w-full border px-3 py-2 mb-3 rounded">
+      <input type="number" name="jumlah_pesanan" id="formJumlah" required class="w-full border px-3 py-2 mb-3 rounded">
 
       <label class="block text-sm text-gray-700 mb-1">Tanggal Pesanan</label>
       <input type="date" name="tgl_pesanan" id="formTanggal" required class="w-full border px-3 py-2 mb-3 rounded">

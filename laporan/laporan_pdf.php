@@ -20,7 +20,10 @@ $tgl_akhir = getTanggalAkhir($periode, $tanggal);
 
 switch ($kategori) {
     case 'produksi':
-        $query = "SELECT * FROM produksi WHERE tgl_produksi BETWEEN '$tanggal' AND '$tgl_akhir'";
+        $query = "SELECT p.nama_produk, pr.jumlah_produksi, pr.tgl_produksi
+          FROM produksi pr
+          JOIN produk p ON pr.id_produk = p.id_produk
+          WHERE pr.tgl_produksi BETWEEN '$tanggal' AND '$tgl_akhir'";
         break;
     case 'stok':
         $query = "SELECT s.id_stok, s.id_produk, p.nama_produk, s.status_stok, s.jumlah
