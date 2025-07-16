@@ -9,7 +9,6 @@ if (session_status() === PHP_SESSION_NONE) {
 include 'auth.php';
 include 'koneksi.php';
 
-// --- [FUNGSI BARU] --- Diletakkan juga di sini agar bisa diakses
 function updateWorkerPaymentStatus($pdo, $id_pekerja)
 {
     $sql_check = "SELECT COUNT(*) FROM riwayat_gaji WHERE id_pekerja = ? AND keterangan = 'Belum Dibayar'";
@@ -37,13 +36,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([$_POST['tanggal'], $_POST['berat_barang_kg'], $_POST['tarif_per_kg'], $_POST['total_gaji'], $_POST['keterangan'], $_POST['id_riwayat_edit']]);
 
-                // --- [BARU] --- Panggil fungsi update status setelah edit
+                // Panggil fungsi update status setelah edit
                 updateWorkerPaymentStatus($pdo, $id_pekerja);
                 $_SESSION['notif'] = ['pesan' => 'Detail riwayat gaji berhasil diperbarui!', 'tipe' => 'sukses'];
                 break;
 
             case 'hapus_gaji_riwayat':
-                // --- [UBAH] --- Kita panggil fungsi update status setelah hapus
+                // Panggil fungsi update status setelah hapus
                 $sql = "DELETE FROM riwayat_gaji WHERE id_riwayat = ?";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([$_POST['id_riwayat_hapus']]);

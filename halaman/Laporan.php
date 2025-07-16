@@ -54,7 +54,6 @@ if ($kategori && $periode && $tanggal) {
 
 <main class="flex-1 bg-gray-100 p-6">
   <section class="bg-white p-6 rounded-md shadow-md">
-    <h2 class="text-2xl font-semibold text-gray-700 mb-4">Laporan Sistem FahmiFood</h2>
 
     <form method="GET" class="flex flex-wrap gap-4 items-end mb-6">
       <input type="hidden" name="page" value="laporan">

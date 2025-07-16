@@ -8,7 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
 
-include 'auth.php'; // Otentikasi Anda
+include 'auth.php'; // Otentikasi
 include 'koneksi.php'; // Koneksi ke database
 
 // Cek jika skrip diakses langsung

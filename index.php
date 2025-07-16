@@ -18,7 +18,6 @@ $halaman = [
   'pekerja'   => 'halaman/Pekerja.php',
   'distribusi'=> 'halaman/Distribusi.php',
   'laporan'   => 'halaman/Laporan.php',
-  'coba' => 'halaman/coba.php',
   'riwayat_gaji' => 'halaman/RiwayatGaji.php',
 ];
 
@@ -56,7 +55,6 @@ $logoPath = 'assets/logo.jpg';
         'pekerja' => 'Pekerja Lepas',
         'distribusi' => 'Distribusi dan Permintaan',
         'laporan' => 'Laporan',
-        // 'coba' => 'coba',
       ];
 
       foreach ($menuItems as $key => $label) {

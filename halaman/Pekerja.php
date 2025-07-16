@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         break;
 
       case 'edit_pekerja':
-        // --- [UBAH] --- Status pembayaran tidak lagi di-edit secara manual di sini
+        // Status pembayaran tidak di-edit secara manual
         $sql = "UPDATE pekerja_lepas SET nama_pekerja = ?, kontak = ?, alamat = ? WHERE id_pekerja = ?";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$_POST['nama_pekerja'], $_POST['kontak'], $_POST['alamat'], $_POST['id_pekerja_edit']]);
@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $stmt_insert = $pdo->prepare($sql_insert);
           $stmt_insert->execute([$id_pekerja_gaji, $_POST['tanggal'], $_POST['berat_barang_kg'], $_POST['tarif_per_kg'], $_POST['total_gaji'], $_POST['keterangan']]);
 
-          // --- [UBAH] --- Panggil fungsi helper untuk update status
+          // Panggil fungsi helper untuk update status
           updateStatusPekerja($pdo, $id_pekerja_gaji);
 
           $pdo->commit();
@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // =================================================================
 
 $search_term = $_GET['search'] ?? '';
-// --- [UBAH TOTAL] --- Query untuk mendapatkan total dibayar dan belum dibayar per pekerja
+// Query untuk mendapatkan total dibayar dan belum dibayar per pekerja
 $sql_pekerja = "SELECT 
                     pl.*, 
                     (SELECT SUM(rg.total_gaji) FROM riwayat_gaji rg WHERE rg.id_pekerja = pl.id_pekerja AND rg.keterangan = 'Dibayar') as total_dibayar,
@@ -107,7 +107,7 @@ $stmt = $pdo->prepare($sql_pekerja);
 $stmt->execute($params);
 $pekerja_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// --- [UBAH TOTAL] --- Menghitung ringkasan total dari tabel riwayat_gaji
+// Menghitung ringkasan total dari tabel riwayat_gaji
 $sql_summary = "SELECT keterangan, SUM(total_gaji) as total_per_keterangan FROM riwayat_gaji GROUP BY keterangan";
 $summary_list = $pdo->query($sql_summary)->fetchAll(PDO::FETCH_KEY_PAIR);
 $summary_dibayar = $summary_list['Dibayar'] ?? 0;

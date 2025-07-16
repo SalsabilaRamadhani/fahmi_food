@@ -4,7 +4,7 @@
 $host = '127.0.0.1'; // atau 'localhost'
 $dbname = 'salsa_db';
 $user = 'root';
-$pass = ''; // Sesuaikan dengan password database Anda, jika ada
+$pass = ''; // Sesuaikan dengan password database, jika ada
 
 try {
     // Buat instance PDO

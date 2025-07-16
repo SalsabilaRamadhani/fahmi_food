@@ -2,7 +2,7 @@
 if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
-// Tidak perlu include 'auth.php' dua kali
+
 include 'auth.php'; // Otentikasi dan mulai session untuk notifikasi
 include 'koneksi.php'; // Koneksi database
 
@@ -12,7 +12,7 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
   exit;
 }
 
-// ============== LOGIKA CRUD (Tidak ada perubahan) ==============
+// ============== LOGIKA CRUD ==============
 
 // Handle form submission (Create & Update)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_jadwal'])) {
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_jadwal'])) {
   exit;
 }
 
-// ============== PENGAMBILAN DATA (READ) (Tidak ada perubahan) ==============
+// ============== PENGAMBILAN DATA (READ) ==============
 
 // Ambil data untuk kartu statistik
 $totalPesanan = $pdo->query("SELECT SUM(jumlah_pesanan) FROM distribusi")->fetchColumn() ?: 0;
@@ -124,7 +124,7 @@ $jadwalList = $pdo->query("SELECT * FROM jadwal ORDER BY tanggal DESC, waktu_mul
     animation: fadeIn 0.3s ease-out forwards;
   }
 
-  /* Styling Notifikasi yang Ditingkatkan */
+  /* Styling Notifikasi */
   .notif {
     display: flex;
     align-items: center;
@@ -340,7 +340,7 @@ $jadwalList = $pdo->query("SELECT * FROM jadwal ORDER BY tanggal DESC, waktu_mul
 
 
 <script>
-  // Logika Javascript tetap sama, hanya beberapa penyesuaian kecil
+  // Logika Javascript
   document.addEventListener('DOMContentLoaded', () => {
     // Modal Elements
     const modalOverlay = document.getElementById('modalOverlay');
