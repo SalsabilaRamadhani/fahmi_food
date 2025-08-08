@@ -2,7 +2,7 @@
 // koneksi.php
 
 $host = '127.0.0.1'; // atau 'localhost'
-$dbname = 'salsa_db';
+$dbname = 'salsa_ff';
 $user = 'root';
 $pass = ''; // Sesuaikan dengan password database, jika ada
 

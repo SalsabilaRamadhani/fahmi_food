@@ -9,16 +9,17 @@ if (!isset($_SESSION['username']) && ($page !== 'login' || $_SERVER['REQUEST_MET
     exit();
 }
 
-// Daftar halaman
-$halaman = [
+// Daftar src
+$src = [
   'login'     => 'Login.php',
-  'dashboard' => 'halaman/Dashboard.php',
-  'produksi'  => 'halaman/Produksi.php',
-  'stok'      => 'halaman/Stok.php',
-  'pekerja'   => 'halaman/Pekerja.php',
-  'distribusi'=> 'halaman/Distribusi.php',
-  'laporan'   => 'halaman/Laporan.php',
-  'riwayat_gaji' => 'halaman/RiwayatGaji.php',
+  'dashboard' => 'src/Dashboard.php',
+  'produksi'  => 'src/Produksi.php',
+  'stok'      => 'src/Stok.php',
+  'pekerja'   => 'src/Pekerja.php',
+  'distribusi'=> 'src/Distribusi.php',
+  'laporan'   => 'src/Laporan.php',
+  'riwayat_gaji' => 'src/RiwayatGaji.php',
+  'jadwal_lengkap' => 'src/jadwal_lengkap.php',
 ];
 
 $logoPath = 'assets/logo.jpg';
@@ -74,17 +75,17 @@ $logoPath = 'assets/logo.jpg';
 
     <div class="p-8 overflow-y-auto">
       <?php
-      if (array_key_exists($page, $halaman)) {
-        include $halaman[$page];
+      if (array_key_exists($page, $src)) {
+        include $src[$page];
       } else {
-        echo "<p class='text-red-500'>Halaman tidak ditemukan.</p>";
+        echo "<p class='text-red-500'>src tidak ditemukan.</p>";
       }
       ?>
     </div>
   </main>
 </div>
 <?php else: ?>
-  <?php include $halaman[$page]; ?>
+  <?php include $src[$page]; ?>
 <?php endif; ?>
 
 </body>
