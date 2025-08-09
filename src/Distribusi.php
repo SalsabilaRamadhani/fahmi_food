@@ -2,265 +2,294 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 include 'auth.php';
 include 'koneksi.php';
+
 if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
-  header("Location: ../Index.php?page=distribusi"); exit;
+  header("Location: ../Index.php?page=distribusi");
+  exit;
 }
 
-// Ambil semua stok yg siap distribusi (stok > 0 & status "Sudah dipacking"/"Tersedia")
-$sql_stok = "
-  SELECT s.*, p.nama_produk
-  FROM stok s
-  JOIN produk p ON s.id_produk = p.id_produk
-  WHERE (s.status_stok = 'Sudah dipacking' OR s.status_stok = 'Tersedia') AND s.jumlah_stok > 0
-  ORDER BY p.nama_produk, s.id_stok DESC
-";
-$stok_list = $pdo->query($sql_stok)->fetchAll(PDO::FETCH_ASSOC);
-
-// Indexing produk → array stok per produk, biar mudah di JS
-$stok_map = [];
-foreach ($stok_list as $row) {
-  $stok_map[$row['id_produk']][] = $row;
-}
-
-// Semua produk
-$produk_options = $pdo->query("SELECT id_produk, nama_produk FROM produk ORDER BY nama_produk ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-// ===== SUBMIT FORM DISTRIBUSI =====
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'tambah') {
+/* =================== HANDLE FORM ==================== */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $action = $_POST['action'] ?? '';
   try {
-    $pdo->beginTransaction();
-    $nama_toko = $_POST['nama_toko'];
-    $tanggal_distribusi = $_POST['tanggal_distribusi'];
-    $status = $_POST['status'];
-    $catatan = $_POST['catatan'] ?? '';
-    $id_admin = 1;
+    if ($action === 'tambah') {
+      // Ambil header pesanan
+      $nama   = trim($_POST['nama_distributor'] ?? '');
+      $alamat = trim($_POST['alamat_distributor'] ?? '');
+      $tgl    = $_POST['tgl_pesanan'] ?? date('Y-m-d');
+      $status = $_POST['status_pengiriman'] ?? 'Diproses';
 
-    // Insert master distribusi
-    $pdo->prepare("INSERT INTO distribusi (nama_toko, tanggal_distribusi, status, catatan, id_admin)
-      VALUES (?, ?, ?, ?, ?)")
-      ->execute([$nama_toko, $tanggal_distribusi, $status, $catatan, $id_admin]);
-    $id_distribusi = $pdo->lastInsertId();
-
-    // Loop setiap detail
-    foreach ($_POST['detail'] as $row) {
-      $id_produk = $row['id_produk'];
-      $id_stok = $row['id_stok'];
-      $jumlah = (int)$row['jumlah'];
-
-      // Validasi: stok cukup
-      $stok_data = $pdo->query("SELECT jumlah_stok FROM stok WHERE id_stok = $id_stok")->fetch();
-      if (!$stok_data || $jumlah > $stok_data['jumlah_stok']) {
-        throw new Exception("Stok tidak cukup untuk salah satu produk!");
+      // Ambil detail multi-produk
+      $details = $_POST['detail'] ?? [];
+      if (!is_array($details) || count($details) === 0) {
+        throw new Exception('Tambahkan minimal 1 produk.');
       }
 
-      // Insert detail
-      $pdo->prepare("INSERT INTO distribusi_detail (id_distribusi, id_produk, id_stok, jumlah_kg)
-        VALUES (?, ?, ?, ?)")
-        ->execute([$id_distribusi, $id_produk, $id_stok, $jumlah]);
+      $stmt = $pdo->prepare("
+        INSERT INTO distribusi
+          (nama_distributor, alamat_distributor, id_produk, jumlah_pesanan, tanggal_pesanan, status_pengiriman)
+        VALUES (?,?,?,?,?,?)
+      ");
 
-      // Kurangi stok
-      $pdo->prepare("UPDATE stok SET jumlah_stok = jumlah_stok - ? WHERE id_stok = ?")
-        ->execute([$jumlah, $id_stok]);
-      // Jika stok habis, update status stok
-      $pdo->prepare("UPDATE stok SET status_stok = 'Habis' WHERE id_stok = ? AND jumlah_stok <= 0")
-        ->execute([$id_stok]);
+      $any = false;
+      foreach ($details as $row) {
+        $id_produk = isset($row['id_produk']) ? (int)$row['id_produk'] : 0;
+        $jumlah    = isset($row['jumlah']) ? (int)$row['jumlah'] : 0;
+        if ($id_produk > 0 && $jumlah > 0) {
+          $stmt->execute([$nama, $alamat, $id_produk, $jumlah, $tgl, $status]);
+          $any = true;
+        }
+      }
+      if (!$any) throw new Exception('Detail produk belum lengkap.');
+
+      $_SESSION['notif'] = ['pesan' => 'Pesanan berhasil ditambahkan!', 'tipe' => 'sukses'];
+
+    } elseif ($action === 'edit') {
+      // Edit tetap per baris (per produk), sesuai desain tabel
+      $stmt = $pdo->prepare("
+        UPDATE distribusi
+           SET nama_distributor=?, alamat_distributor=?, id_produk=?, jumlah_pesanan=?, tanggal_pesanan=?, status_pengiriman=?
+         WHERE id_distribusi=?
+      ");
+      $stmt->execute([
+        $_POST['nama_distributor'],
+        $_POST['alamat_distributor'],
+        (int)$_POST['id_produk'],
+        (int)$_POST['jumlah_pesanan'],
+        $_POST['tgl_pesanan'],
+        $_POST['status_pengiriman'],
+        (int)$_POST['id_distribusi']
+      ]);
+      $_SESSION['notif'] = ['pesan' => 'Pesanan berhasil diperbarui!', 'tipe' => 'sukses'];
+
+    } elseif ($action === 'hapus') {
+      $stmt = $pdo->prepare("DELETE FROM distribusi WHERE id_distribusi = ?");
+      $stmt->execute([(int)$_POST['id_distribusi_hapus']]);
+      $_SESSION['notif'] = ['pesan' => 'Pesanan berhasil dihapus.', 'tipe' => 'sukses'];
     }
-
-    $pdo->commit();
-    $_SESSION['notif'] = ['pesan' => 'Distribusi berhasil disimpan!', 'tipe' => 'sukses'];
   } catch (Exception $e) {
-    if ($pdo->inTransaction()) $pdo->rollBack();
-    $_SESSION['notif'] = ['pesan' => 'Gagal simpan distribusi: ' . $e->getMessage(), 'tipe' => 'error'];
+    $_SESSION['notif'] = ['pesan' => 'Kesalahan: ' . $e->getMessage(), 'tipe' => 'error'];
   }
+
   header("Location: Index.php?page=distribusi");
   exit;
 }
 
-// ====== BACA DATA DISTRIBUSI ======
-$sql_dist = "SELECT d.*, GROUP_CONCAT(CONCAT(pr.nama_produk,' (',dd.jumlah_kg,' kg)') SEPARATOR ', ') AS detail_produk
+/* =================== DATA UTAMA ==================== */
+$daftar_distribusi = $pdo->query("
+  SELECT d.*, p.nama_produk
   FROM distribusi d
-  JOIN distribusi_detail dd ON d.id_distribusi = dd.id_distribusi
-  JOIN produk pr ON dd.id_produk = pr.id_produk
-  GROUP BY d.id_distribusi
-  ORDER BY d.tanggal_distribusi DESC, d.id_distribusi DESC";
-$distribusi_list = $pdo->query($sql_dist)->fetchAll(PDO::FETCH_ASSOC);
+  JOIN produk p ON d.id_produk = p.id_produk
+  ORDER BY d.id_distribusi DESC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$produk_options = $pdo->query("
+  SELECT id_produk, nama_produk
+  FROM produk
+  ORDER BY nama_produk
+")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <main class="flex-1 bg-gray-100">
   <section class="p-6 overflow-x-auto">
     <?php if (isset($_SESSION['notif'])): ?>
-      <div class="mb-4 flex items-center p-4 rounded-md font-bold shadow <?php
-        echo $_SESSION['notif']['tipe'] === 'sukses'
-          ? 'bg-green-500 text-white'
-          : 'bg-red-500 text-white';
-      ?>">
-        <i class="fas <?php
-          echo $_SESSION['notif']['tipe'] === 'sukses'
-            ? 'fa-check-circle'
-            : 'fa-exclamation-triangle';
-        ?> mr-3 text-2xl"></i>
-        <span><?php echo htmlspecialchars($_SESSION['notif']['pesan']); ?></span>
-        <button onclick="this.parentNode.style.display='none'" class="ml-auto bg-transparent border-none text-white text-2xl font-bold opacity-80 hover:opacity-100">&times;</button>
+      <div class="mb-4 p-4 rounded-md text-white font-bold <?= $_SESSION['notif']['tipe'] === 'sukses' ? 'bg-green-500' : 'bg-red-500'; ?>">
+        <?= htmlspecialchars($_SESSION['notif']['pesan']); ?>
       </div>
       <?php unset($_SESSION['notif']); ?>
     <?php endif; ?>
 
-    <!-- FORM DISTRIBUSI -->
-    <div class="bg-white p-6 rounded shadow-md max-w-3xl mb-8 mx-auto">
-      <h2 class="text-lg font-bold mb-4 text-blue-700">Input Distribusi</h2>
-      <form method="POST" id="formDistribusi" autocomplete="off">
-        <input type="hidden" name="action" value="tambah">
-        <div class="mb-3 flex flex-col md:flex-row gap-4">
-          <div class="flex-1">
-            <label class="block text-sm mb-1">Nama Toko</label>
-            <input type="text" name="nama_toko" class="w-full border rounded px-3 py-2" required>
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Tanggal</label>
-            <input type="date" name="tanggal_distribusi" class="border rounded px-3 py-2" value="<?= date('Y-m-d') ?>" required>
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Status</label>
-            <select name="status" class="border rounded px-3 py-2" required>
-              <option value="Dikirim">Dikirim</option>
-              <option value="Selesai">Selesai</option>
-              <option value="Retur">Retur</option>
-            </select>
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="block text-sm mb-1">Catatan (opsional)</label>
-          <textarea name="catatan" class="w-full border rounded px-3 py-2"></textarea>
-        </div>
-        <div class="mb-3">
-          <label class="block text-sm font-semibold mb-2 text-blue-700">Detail Produk</label>
-          <div id="produkDetails"></div>
-          <button type="button" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1 rounded" id="btnTambahBaris">+ Tambah Produk</button>
-        </div>
-        <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white py-2 rounded font-semibold text-base mt-4">Simpan Distribusi</button>
-      </form>
-    </div>
+    <button id="btnTambah" class="mb-4 inline-flex items-center gap-2 bg-blue-700 text-white text-sm font-normal px-4 py-2 rounded" type="button">
+      <i class="fas fa-plus"></i> Input Pesanan
+    </button>
 
-    <!-- TABEL DISTRIBUSI -->
-    <h3 class="font-semibold text-lg mb-2 text-blue-700">Riwayat Distribusi</h3>
     <table class="w-full border border-gray-300 text-sm bg-white">
-      <thead class="bg-blue-200">
-        <tr>
-          <th class="border px-3 py-2">No.</th>
-          <th class="border px-3 py-2">Tanggal</th>
-          <th class="border px-3 py-2">Nama Toko</th>
-          <th class="border px-3 py-2">Produk</th>
-          <th class="border px-3 py-2">Status</th>
-          <th class="border px-3 py-2">Catatan</th>
+      <thead>
+        <tr class="bg-blue-200 text-black text-left">
+          <th class="border border-gray-300 px-3 py-2">No.</th>
+          <th class="border border-gray-300 px-3 py-2">Distributor</th>
+          <th class="border border-gray-300 px-3 py-2">Alamat</th>
+          <th class="border border-gray-300 px-3 py-2">Produk</th>
+          <th class="border border-gray-300 px-3 py-2">Jumlah</th>
+          <th class="border border-gray-300 px-3 py-2">Tanggal Pesanan</th>
+          <th class="border border-gray-300 px-3 py-2">Status</th>
+          <th class="border border-gray-300 px-3 py-2">Aksi</th>
         </tr>
       </thead>
       <tbody>
-        <?php if (empty($distribusi_list)): ?>
-          <tr><td colspan="6" class="text-center text-gray-500 py-6">Belum ada distribusi tercatat.</td></tr>
-        <?php else: ?>
-          <?php foreach ($distribusi_list as $i => $dist): ?>
-            <tr>
-              <td class="border px-3 py-2"><?= $i+1 ?>.</td>
-              <td class="border px-3 py-2"><?= date('d M Y', strtotime($dist['tanggal_distribusi'])) ?></td>
-              <td class="border px-3 py-2"><?= htmlspecialchars($dist['nama_toko']) ?></td>
-              <td class="border px-3 py-2"><?= htmlspecialchars($dist['detail_produk']) ?></td>
-              <td class="border px-3 py-2"><?= htmlspecialchars($dist['status']) ?></td>
-              <td class="border px-3 py-2"><?= htmlspecialchars($dist['catatan']) ?></td>
-            </tr>
-          <?php endforeach; ?>
-        <?php endif; ?>
+        <?php if (empty($daftar_distribusi)): ?>
+          <tr>
+            <td colspan="8" class="border border-gray-300 px-3 py-4 text-center text-gray-500">Belum ada data distribusi.</td>
+          </tr>
+        <?php else: foreach ($daftar_distribusi as $i => $d): ?>
+          <tr>
+            <td class="border border-gray-300 px-3 py-2"><?= $i + 1 ?>.</td>
+            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['nama_distributor']) ?></td>
+            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['alamat_distributor']) ?></td>
+            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['nama_produk']) ?></td>
+            <td class="border border-gray-300 px-3 py-2"><?= (int)$d['jumlah_pesanan'] ?> kg</td>
+            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['tanggal_pesanan']) ?></td>
+            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['status_pengiriman']) ?></td>
+            <td class="border border-gray-300 px-3 py-2 space-x-2">
+              <button class="btnEdit px-3 py-1 text-xs text-white rounded" style="background-color:#1d4ed8;"
+                data-id="<?= $d['id_distribusi'] ?>"
+                data-nama="<?= htmlspecialchars($d['nama_distributor']) ?>"
+                data-alamat="<?= htmlspecialchars($d['alamat_distributor']) ?>"
+                data-id_produk="<?= $d['id_produk'] ?>"
+                data-jumlah="<?= (int)$d['jumlah_pesanan'] ?>"
+                data-tanggal="<?= $d['tanggal_pesanan'] ?>"
+                data-status="<?= htmlspecialchars($d['status_pengiriman']) ?>">Edit</button>
+              <form method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus data ini?')">
+                <input type="hidden" name="action" value="hapus">
+                <input type="hidden" name="id_distribusi_hapus" value="<?= $d['id_distribusi'] ?>">
+                <button type="submit" class="bg-red-700 text-white text-xs px-3 py-1 rounded hover:bg-red-800">Hapus</button>
+              </form>
+            </td>
+          </tr>
+        <?php endforeach; endif; ?>
       </tbody>
     </table>
   </section>
+
+  <!-- Modal Tambah/Edit -->
+  <div id="modalForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <form action="" method="POST" id="formDistribusi" class="bg-white p-6 rounded w-[680px] max-w-[92vw] relative shadow">
+      <input type="hidden" name="action" id="formAction" value="tambah">
+      <input type="hidden" name="id_distribusi" id="formIdDistribusi">
+
+      <button type="button" class="btnClose absolute top-2 right-3 text-gray-600 hover:text-black text-xl font-bold">&times;</button>
+
+      <h2 id="formTitle" class="text-lg font-semibold text-gray-800 mb-4">Tambah Pesanan</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-gray-700 mb-1">Nama Distributor</label>
+          <input type="text" name="nama_distributor" id="formNama" required class="w-full border px-3 py-2 rounded">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-700 mb-1">Tanggal Pesanan</label>
+          <input type="date" name="tgl_pesanan" id="formTanggal" required class="w-full border px-3 py-2 rounded" value="<?= date('Y-m-d') ?>">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm text-gray-700 mb-1">Alamat Distributor</label>
+          <input type="text" name="alamat_distributor" id="formAlamat" required class="w-full border px-3 py-2 rounded">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-700 mb-1">Status Pengiriman</label>
+          <select name="status_pengiriman" id="formStatus" required class="w-full border px-3 py-2 rounded">
+            <option value="">-- Pilih Status --</option>
+            <option value="Diproses">Diproses</option>
+            <option value="Dikirim">Dikirim</option>
+            <option value="Selesai">Selesai</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="text-sm font-semibold text-gray-800 mb-2">Detail Produk</div>
+        <div id="produkList"></div>
+        <button type="button" class="mt-2 bg-blue-700 text-white text-xs px-3 py-1 rounded" onclick="addRow()">+ Tambah Produk</button>
+      </div>
+
+      <div class="mt-5">
+        <button type="submit" class="w-full bg-blue-700 text-white py-2 rounded">Simpan</button>
+      </div>
+    </form>
+  </div>
 </main>
 
 <script>
-  // Map stok per produk untuk select stok dinamis
-  const stokMap = <?= json_encode($stok_map) ?>;
-  const produkList = <?= json_encode($produk_options) ?>;
+  // ===== Modal basic =====
+  const btnTambah = document.getElementById('btnTambah');
+  const modal = document.getElementById('modalForm');
+  const closeModal = () => modal.classList.add('hidden');
+  const openModal  = () => modal.classList.remove('hidden');
+  document.querySelectorAll('.btnClose').forEach(btn => btn.onclick = closeModal);
+  window.onclick = e => { if (e.target === modal) closeModal(); };
 
-  function barisProduk(idx) {
-    return `
-    <div class="flex gap-2 mb-2 produk-row" data-idx="${idx}">
-      <div class="flex-1">
-        <select name="detail[${idx}][id_produk]" class="select-produk w-full border rounded px-2 py-1" required>
-          <option value="" disabled selected>-- Pilih Produk --</option>
-          ${produkList.map(p => `<option value="${p.id_produk}">${p.nama_produk}</option>`).join('')}
-        </select>
-      </div>
-      <div class="flex-1">
-        <select name="detail[${idx}][id_stok]" class="select-stok w-full border rounded px-2 py-1" required disabled>
-          <option value="" disabled selected>Pilih produk dulu</option>
-        </select>
-      </div>
-      <div>
-        <input type="number" name="detail[${idx}][jumlah]" min="1" class="input-jumlah w-20 border rounded px-2 py-1" placeholder="Kg" required disabled>
-      </div>
-      <div>
-        <button type="button" class="btnHapusBaris bg-red-500 hover:bg-red-700 text-white px-2 py-1 rounded">&times;</button>
-      </div>
-    </div>
-    `;
+  btnTambah.onclick = () => {
+    document.getElementById('formTitle').textContent = 'Tambah Pesanan';
+    document.getElementById('formAction').value = 'tambah';
+    document.getElementById('formIdDistribusi').value = '';
+    // reset field header
+    ['formNama','formAlamat','formTanggal','formStatus'].forEach(id => {
+      const el = document.getElementById(id);
+      if (id==='formTanggal') el.value = '<?= date('Y-m-d') ?>';
+      else el.value = '';
+    });
+    // reset detail
+    document.getElementById('produkList').innerHTML = '';
+    rowCount = 0;
+    addRow();
+    openModal();
+  };
+
+  // ===== Edit (per baris) =====
+  document.querySelectorAll('.btnEdit').forEach(btn => {
+    btn.onclick = () => {
+      document.getElementById('formTitle').textContent = 'Edit Pesanan';
+      document.getElementById('formAction').value = 'edit';
+      document.getElementById('formIdDistribusi').value = btn.dataset.id;
+      document.getElementById('formNama').value = btn.dataset.nama;
+      document.getElementById('formAlamat').value = btn.dataset.alamat;
+      document.getElementById('formTanggal').value = btn.dataset.tanggal;
+      document.getElementById('formStatus').value = btn.dataset.status;
+
+      // detail untuk edit (satu baris sesuai row yang diklik)
+      document.getElementById('produkList').innerHTML = '';
+      rowCount = 0;
+      addRow(btn.dataset.id_produk, btn.dataset.jumlah);
+      openModal();
+    };
+  });
+
+  // ===== Dynamic rows (multi-produk) =====
+  const produkOptions = `<?php foreach ($produk_options as $p) {
+    echo '<option value="'.(int)$p['id_produk'].'">'.htmlspecialchars($p['nama_produk']).'</option>';
+  } ?>`;
+
+  let rowCount = 0;
+  function addRow(selectedProduk = '', jumlah = '') {
+    rowCount++;
+    const id = rowCount;
+    const row = document.createElement('div');
+    row.className = 'produk-row border border-gray-200 rounded p-3 mb-2';
+    row.innerHTML = `
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+        <div>
+          <label class="block text-sm text-gray-700 mb-1">Produk</label>
+          <select name="detail[${id}][id_produk]" class="w-full border px-3 py-2 rounded" required>
+            <option value="">-- Pilih Produk --</option>
+            ${produkOptions}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-700 mb-1">Jumlah (kg)</label>
+          <input type="number" name="detail[${id}][jumlah]" min="1" class="w-full border px-3 py-2 rounded" required>
+        </div>
+        <div class="text-right md:text-left">
+          <button type="button" class="bg-red-600 text-white text-xs px-3 py-2 rounded" onclick="this.closest('.produk-row').remove()">Hapus</button>
+        </div>
+      </div>`;
+    document.getElementById('produkList').appendChild(row);
+
+    // Set nilai awal jika diberikan (mode edit)
+    if (selectedProduk) row.querySelector('select').value = selectedProduk;
+    if (jumlah) row.querySelector('input').value = jumlah;
   }
 
-  let barisCount = 0;
-  function tambahBarisProduk() {
-    barisCount++;
-    const div = document.createElement('div');
-    div.innerHTML = barisProduk(barisCount);
-    document.getElementById('produkDetails').appendChild(div.firstChild);
-  }
-
-  // Initial satu baris
-  document.addEventListener('DOMContentLoaded', function() {
-    tambahBarisProduk();
-    document.getElementById('btnTambahBaris').addEventListener('click', tambahBarisProduk);
-
-    document.getElementById('produkDetails').addEventListener('change', function(e) {
-      if (e.target.classList.contains('select-produk')) {
-        const row = e.target.closest('.produk-row');
-        const idx = row.dataset.idx;
-        const id_produk = e.target.value;
-        const stokSelect = row.querySelector('.select-stok');
-        const jumlahInput = row.querySelector('.input-jumlah');
-        stokSelect.innerHTML = '';
-        stokSelect.disabled = true;
-        jumlahInput.value = '';
-        jumlahInput.disabled = true;
-        if (id_produk && stokMap[id_produk]) {
-          stokSelect.innerHTML = '<option value="" disabled selected>-- Pilih Stok --</option>' +
-            stokMap[id_produk].map(s => `<option value="${s.id_stok}" data-max="${s.jumlah_stok}">Batch #${s.id_stok} | Sisa: ${s.jumlah_stok}kg</option>`).join('');
-          stokSelect.disabled = false;
-        } else {
-          stokSelect.innerHTML = '<option value="" disabled selected>Tidak ada stok tersedia</option>';
-        }
-      }
-      if (e.target.classList.contains('select-stok')) {
-        const row = e.target.closest('.produk-row');
-        const jumlahInput = row.querySelector('.input-jumlah');
-        jumlahInput.value = '';
-        jumlahInput.disabled = !e.target.value;
-        if (e.target.value) {
-          jumlahInput.max = e.target.selectedOptions[0].dataset.max || '';
-        }
-      }
+  // Validasi minimal 1 baris detail
+  document.getElementById('formDistribusi').addEventListener('submit', function(e) {
+    const rows = [...document.querySelectorAll('.produk-row')];
+    let ok = 0;
+    rows.forEach(r => {
+      const pr = r.querySelector('select');
+      const j  = r.querySelector('input[type="number"]');
+      if (pr.value && parseInt(j.value||'0') > 0) ok++;
     });
-
-    document.getElementById('produkDetails').addEventListener('input', function(e) {
-      if (e.target.classList.contains('input-jumlah')) {
-        const row = e.target.closest('.produk-row');
-        const stokSelect = row.querySelector('.select-stok');
-        const max = parseInt(stokSelect.selectedOptions[0]?.dataset.max) || 0;
-        if (parseInt(e.target.value) > max) {
-          e.target.value = max;
-        }
-      }
-    });
-
-    document.getElementById('produkDetails').addEventListener('click', function(e) {
-      if (e.target.classList.contains('btnHapusBaris')) {
-        e.target.closest('.produk-row').remove();
-      }
-    });
+    if (ok === 0) {
+      e.preventDefault();
+      alert('Tambahkan minimal 1 produk dengan jumlah yang benar.');
+    }
   });
 </script>
