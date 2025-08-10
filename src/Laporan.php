@@ -168,10 +168,6 @@ if ($kategori==='semua') {
       </div>
 
       <div class="flex items-center gap-2">
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-1">
-          Lihat Laporan
-        </button>
-
         <!-- Tombol Cetak PDF (ke /laporan/laporan_pdf.php) -->
         <a
           href="<?= htmlspecialchars($pdfUrl) ?>"

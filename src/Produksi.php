@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       case 'edit':
         $id_produksi = $_POST['id_produksi_edit'];
+        $id_produk = $_POST['id_produk'];
         $id_jadwal = $_POST['id_jadwal'];
         $jumlah_produksi = (int)$_POST['jumlah_produksi'];
         $jumlah_dikemas = (int)$_POST['jumlah_dikemas'];
@@ -43,9 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($jumlah_dikemas > $jumlah_produksi) {
           $_SESSION['notif'] = ['pesan' => 'Jumlah dikemas tidak boleh melebihi jumlah produksi.', 'tipe' => 'error'];
         } else {
-          $sql = "UPDATE produksi SET id_jadwal = ?, jumlah_produksi = ?, jumlah_dikemas = ?, jumlah_reject = ? WHERE id_produksi = ?";
+          $sql = "UPDATE produksi SET id_produk = ?, id_jadwal = ?, jumlah_produksi = ?, jumlah_dikemas = ?, jumlah_reject = ? WHERE id_produksi = ?";
           $stmt = $pdo->prepare($sql);
-          $stmt->execute([$id_jadwal, $jumlah_produksi, $jumlah_dikemas, $jumlah_reject, $id_produksi]);
+          $stmt->execute([$id_produk, $id_jadwal, $jumlah_produksi, $jumlah_dikemas, $jumlah_reject, $id_produksi]);
           $_SESSION['notif'] = ['pesan' => 'Data produksi berhasil diperbarui!', 'tipe' => 'sukses'];
         }
         break;
@@ -246,10 +247,17 @@ $total_reject = $totals['total_reject'] ?? 0;
     <h1 class="text-black text-lg font-semibold mb-4">Edit Produksi</h1>
     <input type="hidden" name="action" value="edit">
     <input type="hidden" name="id_produksi_edit" id="id_produksi_edit">
+    
     <div class="flex flex-col mb-3">
       <label for="edit_id_produk" class="mb-1 text-sm font-medium text-gray-700">Nama Produk</label>
-      <input type="text" id="editNamaProduk" placeholder="Nama Produk" class="w-full mb-3 px-3 py-2 bg-gray-200 text-gray-500 rounded border border-gray-300" readonly />
+      <select name="id_produk" id="edit_id_produk" class="w-full px-3 py-2 rounded border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+        <option value="" disabled>-- Pilih Produk --</option>
+        <?php foreach ($produk_options as $option): ?>
+          <option value="<?php echo $option['id_produk']; ?>"><?php echo htmlspecialchars($option['nama_produk']); ?></option>
+        <?php endforeach; ?>
+      </select>
     </div>
+    
     <div class="flex flex-col mb-3">
       <label for="edit_id_jadwal" class="mb-1 text-sm font-medium text-gray-700">Slot Jadwal Produksi</label>
       <select name="id_jadwal" id="edit_id_jadwal" class="w-full px-3 py-2 rounded border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600" required>
@@ -339,7 +347,7 @@ $total_reject = $totals['total_reject'] ?? 0;
       button.addEventListener('click', (e) => {
         const data = e.currentTarget.dataset;
         document.getElementById('id_produksi_edit').value = data.idProduksi;
-        document.getElementById('editNamaProduk').value = data.namaProduk;
+        document.getElementById('edit_id_produk').value = data.idProduk;
         document.getElementById('edit_id_jadwal').value = data.idJadwal;
         document.getElementById('editJumlahProduksi').value = data.jumlahProduksi;
         document.getElementById('editJumlahDikemas').value = data.jumlahDikemas;

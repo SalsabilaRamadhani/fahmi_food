@@ -61,7 +61,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_jadwal'])) {
 $totalPesanan = $pdo->query("SELECT SUM(jumlah_pesanan) FROM distribusi")->fetchColumn() ?: 0;
 $totalProduksi = $pdo->query("SELECT SUM(jumlah_produksi) FROM produksi")->fetchColumn() ?: 0;
 $totalStok = $pdo->query("SELECT SUM(jumlah_stok) FROM stok")->fetchColumn() ?: 0;
-$totalGaji = $pdo->query("SELECT SUM(total_gaji) FROM pembayaran_gaji WHERE status_pembayaran = 'Belum Dibayar'")->fetchColumn() ?? 0;
+// Total gaji pekerja lepas yang Belum Dibayar (relasi eksplisit ke pekerja_lepas)
+$sql = "
+  SELECT COALESCE(SUM(rg.total_gaji), 0)
+  FROM riwayat_gaji rg
+  INNER JOIN pekerja_lepas pl ON pl.id_pekerja = rg.id_pekerja
+  WHERE rg.keterangan = 'Belum Dibayar'
+";
+$totalGaji = (int) $pdo->query($sql)->fetchColumn();
 
 $jadwalList = $pdo->query("
   SELECT j.*, a.username 
