@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 10 Agu 2025 pada 08.50
+-- Waktu pembuatan: 11 Agu 2025 pada 04.52
 -- Versi server: 10.4.28-MariaDB
 -- Versi PHP: 8.2.4
 
@@ -64,8 +64,12 @@ CREATE TABLE `distribusi` (
 --
 
 INSERT INTO `distribusi` (`id_distribusi`, `nama_toko`, `tanggal_distribusi`, `id_produk`, `jumlah_pesanan`, `tanggal_pesanan`, `status_pengiriman`, `nama_distributor`, `alamat_distributor`, `id_distributor`) VALUES
-(1, NULL, NULL, 4602, 500, '2025-08-15', 'Diproses', 'Toko Jaya', 'Semarang', NULL),
-(2, NULL, NULL, 4901, 200, '2025-08-15', 'Diproses', 'Toko Jaya', 'Semarang', NULL);
+(3, NULL, NULL, 4901, 600, '2025-09-06', 'Diproses', 'Toko Merpati', 'Solo', NULL),
+(7, NULL, NULL, 4602, 300, '2025-08-15', 'Diproses', 'Toko Jaya', 'Semarang', NULL),
+(11, NULL, NULL, 4901, 500, '2025-08-10', 'Diproses', 'Toko Pink', 'Banjarnegara', NULL),
+(12, NULL, NULL, 4602, 200, '2025-08-10', 'Diproses', 'Toko Pink', 'Banjarnegara', NULL),
+(15, NULL, NULL, 4901, 500, '2025-08-21', 'Diproses', 'Toko Biru', 'Kaliwiro', NULL),
+(16, NULL, NULL, 4602, 400, '2025-08-21', 'Diproses', 'Toko Biru', 'Kaliwiro', NULL);
 
 -- --------------------------------------------------------
 
@@ -236,8 +240,8 @@ CREATE TABLE `produk` (
 --
 
 INSERT INTO `produk` (`id_produk`, `nama_produk`) VALUES
-(4602, 'Agar Pita'),
-(4901, 'Agar Pelangi');
+(4602, 'Agar-Agar Pita'),
+(4901, 'Agar-Agar Pelangi');
 
 -- --------------------------------------------------------
 
@@ -483,7 +487,7 @@ ALTER TABLE `admin`
 -- AUTO_INCREMENT untuk tabel `distribusi`
 --
 ALTER TABLE `distribusi`
-  MODIFY `id_distribusi` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id_distribusi` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT untuk tabel `distribusi_detail`
@@ -495,7 +499,7 @@ ALTER TABLE `distribusi_detail`
 -- AUTO_INCREMENT untuk tabel `jadwal`
 --
 ALTER TABLE `jadwal`
-  MODIFY `id_jadwal` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id_jadwal` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT untuk tabel `laporan`
