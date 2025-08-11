@@ -17,7 +17,7 @@ $sql_stok_pita = "
 ";
 $stok_pita_list = $pdo->query($sql_stok_pita)->fetchAll(PDO::FETCH_ASSOC);
 
-// --- FUNGSI HELPER UNTUK UPDATE STATUS PEKERJA OTOMATIS ---
+// --- FUNGSI HELPER UNTUK UPDATE STATUS Gaji OTOMATIS ---
 function updateStatusPekerja($pdo, $id_pekerja) {
   $sql_check = "SELECT COUNT(*) FROM riwayat_gaji WHERE id_pekerja = ? AND keterangan = 'Belum Dibayar'";
   $stmt_check = $pdo->prepare($sql_check);
@@ -138,7 +138,7 @@ $summary_belum_dibayar = $summary_list['Belum Dibayar'] ?? 0;
           <th class="border border-gray-300 px-3 py-2 w-32">Kontak</th>
           <th class="border border-gray-300 px-3 py-2 w-40">Total Dibayar</th>
           <th class="border border-gray-300 px-3 py-2 w-40">Total Belum Dibayar</th>
-          <th class="border border-gray-300 px-3 py-2 w-40">Status Pekerja</th>
+          <th class="border border-gray-300 px-3 py-2 w-40">Status Gaji</th>
           <th class="border border-gray-300 px-3 py-2 w-52">Aksi</th>
         </tr>
       </thead>

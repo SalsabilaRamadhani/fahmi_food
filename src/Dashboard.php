@@ -6,7 +6,6 @@ if (session_status() === PHP_SESSION_NONE) {
 include 'auth.php';
 include 'koneksi.php';
 
-// Cegah akses langsung file
 if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
   header("Location: ../Index.php?page=dashboard");
   exit;
@@ -21,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_jadwal'])) {
   $waktu_mulai = $_POST['jam_mulai'];
   $waktu_selesai = $_POST['jam_selesai'];
   $jenis_kegiatan = $_POST['jenis_kegiatan'];
-  $id_admin = 1; // Ganti dari session jika multi user
+  $id_admin = 1; // Tetap simpan admin di database tapi tidak ditampilkan
 
   try {
     if (empty($id_jadwal)) {
@@ -61,7 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_jadwal'])) {
 $totalPesanan = $pdo->query("SELECT SUM(jumlah_pesanan) FROM distribusi")->fetchColumn() ?: 0;
 $totalProduksi = $pdo->query("SELECT SUM(jumlah_produksi) FROM produksi")->fetchColumn() ?: 0;
 $totalStok = $pdo->query("SELECT SUM(jumlah_stok) FROM stok")->fetchColumn() ?: 0;
-// Total gaji pekerja lepas yang Belum Dibayar (relasi eksplisit ke pekerja_lepas)
 $sql = "
   SELECT COALESCE(SUM(rg.total_gaji), 0)
   FROM riwayat_gaji rg
@@ -70,10 +68,9 @@ $sql = "
 ";
 $totalGaji = (int) $pdo->query($sql)->fetchColumn();
 
+// Query jadwal tanpa join ke admin
 $jadwalList = $pdo->query("
-  SELECT j.*, a.username 
-  FROM jadwal j 
-  LEFT JOIN admin a ON j.id_admin = a.id_admin 
+  SELECT * FROM jadwal 
   ORDER BY tanggal DESC, waktu_mulai DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -103,7 +100,6 @@ $jadwalList = $pdo->query("
     <?php endif; ?>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-
       <div class="lg:col-span-2 bg-white shadow-md rounded-lg p-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-gray-800 select-none">Jadwal Harian</h2>
@@ -114,7 +110,8 @@ $jadwalList = $pdo->query("
             <button id="lihatSemuaJadwalBtn" class="bg-gray-200 hover:bg-gray-300 text-blue-900 font-semibold px-4 py-2 rounded-md border border-gray-300">Lihat Semua</button>
           </div>
         </div>
-        <!-- KOTAK JADWAL DENGAN SCROLL & STICKY HEADER -->
+        
+        <!-- Jadwal Table - Admin column removed -->
         <div class="overflow-x-auto max-h-[340px] overflow-y-auto rounded-md border border-gray-200">
           <table class="w-full text-sm text-left text-gray-700">
             <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0 z-10">
@@ -122,14 +119,13 @@ $jadwalList = $pdo->query("
                 <th class="py-3 px-4">Tanggal</th>
                 <th class="py-3 px-4">Waktu</th>
                 <th class="py-3 px-4">Jenis Kegiatan</th>
-                <th class="py-3 px-4">Admin</th>
                 <th class="py-3 px-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($jadwalList)): ?>
                 <tr class="bg-white border-b">
-                  <td colspan="5" class="py-6 px-4 text-center text-gray-500">
+                  <td colspan="4" class="py-6 px-4 text-center text-gray-500">
                     <i class="fas fa-calendar-times fa-2x mb-2 text-gray-400"></i>
                     <p>Belum ada jadwal.</p>
                   </td>
@@ -140,7 +136,6 @@ $jadwalList = $pdo->query("
                     <td class="py-4 px-4 font-medium text-gray-900"><?php echo htmlspecialchars(date('d M Y', strtotime($jadwal['tanggal']))); ?></td>
                     <td class="py-4 px-4"><?php echo htmlspecialchars(date('H:i', strtotime($jadwal['waktu_mulai']))) . ' - ' . htmlspecialchars(date('H:i', strtotime($jadwal['waktu_selesai']))); ?></td>
                     <td class="py-4 px-4"><?php echo htmlspecialchars($jadwal['jenis_kegiatan']); ?></td>
-                    <td class="py-4 px-4"><?php echo htmlspecialchars($jadwal['username'] ?? '-'); ?></td>
                     <td class="py-4 px-4 text-center w-28">
                       <button class="text-blue-600 hover:text-blue-800 p-2 editBtn"
                         data-id="<?php echo $jadwal['id_jadwal']; ?>"
@@ -165,6 +160,7 @@ $jadwalList = $pdo->query("
         </div>
       </div>
 
+      <!-- Stats Cards (unchanged) -->
       <div class="lg:col-span-1 space-y-6">
         <div onclick="window.location.href='Index.php?page=distribusi';" class="bg-white shadow-md rounded-lg p-5 flex items-center cursor-pointer hover:shadow-lg transition-shadow duration-300">
           <div class="bg-blue-100 text-blue-600 rounded-full p-4 mr-4">
@@ -207,7 +203,7 @@ $jadwalList = $pdo->query("
   </div>
 </section>
 
-<!-- MODAL JADWAL LENGKAP -->
+<!-- MODAL JADWAL LENGKAP - Admin column removed -->
 <div id="modalJadwalLengkap" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
   <div class="bg-white max-w-5xl w-full rounded-lg shadow-lg p-6 overflow-y-auto max-h-[90vh] relative">
     <h3 class="text-xl font-bold mb-4 text-blue-800">Jadwal Lengkap</h3>
@@ -219,7 +215,6 @@ $jadwalList = $pdo->query("
             <th class="py-3 px-4">Tanggal</th>
             <th class="py-3 px-4">Waktu</th>
             <th class="py-3 px-4">Jenis Kegiatan</th>
-            <th class="py-3 px-4">Admin</th>
           </tr>
         </thead>
         <tbody>
@@ -228,7 +223,6 @@ $jadwalList = $pdo->query("
               <td class="py-3 px-4"><?php echo htmlspecialchars(date('d M Y', strtotime($jadwal['tanggal']))); ?></td>
               <td class="py-3 px-4"><?php echo htmlspecialchars(date('H:i', strtotime($jadwal['waktu_mulai']))) . ' - ' . htmlspecialchars(date('H:i', strtotime($jadwal['waktu_selesai']))); ?></td>
               <td class="py-3 px-4"><?php echo htmlspecialchars($jadwal['jenis_kegiatan']); ?></td>
-              <td class="py-3 px-4"><?php echo htmlspecialchars($jadwal['username'] ?? '-'); ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
@@ -237,7 +231,7 @@ $jadwalList = $pdo->query("
   </div>
 </div>
 
-<!-- MODAL JADWAL CRUD -->
+<!-- MODAL JADWAL CRUD (unchanged) -->
 <div id="modalOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
   <div class="bg-white shadow-xl rounded-lg p-6 w-full max-w-md relative">
     <form id="jadwalForm" action="Index.php?page=dashboard" method="POST" aria-modal="true" role="dialog" aria-labelledby="formTitle">
@@ -274,7 +268,7 @@ $jadwalList = $pdo->query("
   </div>
 </div>
 
-<!-- MODAL DELETE -->
+<!-- MODAL DELETE (unchanged) -->
 <div id="deleteDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
   <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
     <div class="flex items-start">

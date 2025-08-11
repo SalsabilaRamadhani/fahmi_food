@@ -3,7 +3,22 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 include 'auth.php';
 include 'koneksi.php';
 
-if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
+/**
+ * Skema rujukan:
+ * - produk(id_produk, nama_produk, ...)
+ * - distribusi(
+ *     id_distribusi PK AI,
+ *     id_produk FK,
+ *     jumlah_pesanan INT,
+ *     tanggal_pesanan DATE,
+ *     status_pengiriman VARCHAR,
+ *     nama_distributor VARCHAR,
+ *     alamat_distributor VARCHAR
+ *   )
+ */
+
+/* Cegah akses langsung file */
+if (basename(__FILE__) == basename($_SERVER['SCRIPT_FILENAME'])) {
   header("Location: ../Index.php?page=distribusi");
   exit;
 }
@@ -12,18 +27,19 @@ if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
   try {
+    if (!isset($pdo) || !($pdo instanceof PDO)) {
+      throw new Exception('Koneksi $pdo tidak tersedia. Periksa koneksi.php.');
+    }
+
     if ($action === 'tambah') {
-      // Ambil header pesanan
       $nama   = trim($_POST['nama_distributor'] ?? '');
       $alamat = trim($_POST['alamat_distributor'] ?? '');
       $tgl    = $_POST['tgl_pesanan'] ?? date('Y-m-d');
       $status = $_POST['status_pengiriman'] ?? 'Diproses';
-
-      // Ambil detail multi-produk
       $details = $_POST['detail'] ?? [];
-      if (!is_array($details) || count($details) === 0) {
-        throw new Exception('Tambahkan minimal 1 produk.');
-      }
+
+      if ($nama === '' || $alamat === '') throw new Exception('Nama & Alamat distributor wajib diisi.');
+      if (!is_array($details) || count($details) === 0) throw new Exception('Tambahkan minimal 1 produk.');
 
       $stmt = $pdo->prepare("
         INSERT INTO distribusi
@@ -31,76 +47,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         VALUES (?,?,?,?,?,?)
       ");
 
-      $any = false;
+      $ok = 0;
       foreach ($details as $row) {
-        $id_produk = isset($row['id_produk']) ? (int)$row['id_produk'] : 0;
-        $jumlah    = isset($row['jumlah']) ? (int)$row['jumlah'] : 0;
+        $id_produk = (int)($row['id_produk'] ?? 0);
+        $jumlah    = (int)($row['jumlah'] ?? 0);
         if ($id_produk > 0 && $jumlah > 0) {
           $stmt->execute([$nama, $alamat, $id_produk, $jumlah, $tgl, $status]);
-          $any = true;
+          $ok++;
         }
       }
-      if (!$any) throw new Exception('Detail produk belum lengkap.');
+      if ($ok === 0) throw new Exception('Detail produk belum lengkap.');
 
       $_SESSION['notif'] = ['pesan' => 'Pesanan berhasil ditambahkan!', 'tipe' => 'sukses'];
 
-    } elseif ($action === 'edit') {
-      // Edit tetap per baris (per produk), sesuai desain tabel
-      $stmt = $pdo->prepare("
-        UPDATE distribusi
-           SET nama_distributor=?, alamat_distributor=?, id_produk=?, jumlah_pesanan=?, tanggal_pesanan=?, status_pengiriman=?
-         WHERE id_distribusi=?
-      ");
-      $stmt->execute([
-        $_POST['nama_distributor'],
-        $_POST['alamat_distributor'],
-        (int)$_POST['id_produk'],
-        (int)$_POST['jumlah_pesanan'],
-        $_POST['tgl_pesanan'],
-        $_POST['status_pengiriman'],
-        (int)$_POST['id_distribusi']
-      ]);
-      $_SESSION['notif'] = ['pesan' => 'Pesanan berhasil diperbarui!', 'tipe' => 'sukses'];
+    } elseif ($action === 'edit_grup') {
+      // Edit seluruh grup: hapus baris lama (by key lama), insert ulang dengan header + detail baru
+      $old_nama   = $_POST['key_nama_old']   ?? '';
+      $old_alamat = $_POST['key_alamat_old'] ?? '';
+      $old_tgl    = $_POST['key_tanggal_old']?? '';
+      $old_status = $_POST['key_status_old'] ?? '';
 
-    } elseif ($action === 'hapus') {
-      $stmt = $pdo->prepare("DELETE FROM distribusi WHERE id_distribusi = ?");
-      $stmt->execute([(int)$_POST['id_distribusi_hapus']]);
-      $_SESSION['notif'] = ['pesan' => 'Pesanan berhasil dihapus.', 'tipe' => 'sukses'];
+      $nama   = trim($_POST['nama_distributor'] ?? '');
+      $alamat = trim($_POST['alamat_distributor'] ?? '');
+      $tgl    = $_POST['tgl_pesanan'] ?? date('Y-m-d');
+      $status = $_POST['status_pengiriman'] ?? 'Diproses';
+      $details = $_POST['detail'] ?? [];
+
+      if ($nama === '' || $alamat === '') throw new Exception('Nama & Alamat wajib diisi.');
+      if (!is_array($details) || count($details) === 0) throw new Exception('Tambahkan minimal 1 produk.');
+
+      $pdo->beginTransaction();
+
+      $pdo->prepare("DELETE FROM distribusi WHERE nama_distributor=? AND alamat_distributor=? AND tanggal_pesanan=? AND status_pengiriman=?")
+          ->execute([$old_nama, $old_alamat, $old_tgl, $old_status]);
+
+      $stmtIns = $pdo->prepare("
+        INSERT INTO distribusi
+          (nama_distributor, alamat_distributor, id_produk, jumlah_pesanan, tanggal_pesanan, status_pengiriman)
+        VALUES (?,?,?,?,?,?)
+      ");
+
+      $inserted = 0;
+      foreach ($details as $row) {
+        $id_produk = (int)($row['id_produk'] ?? 0);
+        $jumlah    = (int)($row['jumlah'] ?? 0);
+        if ($id_produk > 0 && $jumlah > 0) {
+          $stmtIns->execute([$nama, $alamat, $id_produk, $jumlah, $tgl, $status]);
+          $inserted++;
+        }
+      }
+      if ($inserted === 0) throw new Exception('Detail produk tidak valid.');
+
+      $pdo->commit();
+      $_SESSION['notif'] = ['pesan' => 'Grup berhasil diperbarui!', 'tipe' => 'sukses'];
+
+    } elseif ($action === 'hapus_grup') {
+      $old_nama   = $_POST['key_nama_old']   ?? '';
+      $old_alamat = $_POST['key_alamat_old'] ?? '';
+      $old_tgl    = $_POST['key_tanggal_old']?? '';
+      $old_status = $_POST['key_status_old'] ?? '';
+
+      $pdo->prepare("DELETE FROM distribusi WHERE nama_distributor=? AND alamat_distributor=? AND tanggal_pesanan=? AND status_pengiriman=?")
+          ->execute([$old_nama, $old_alamat, $old_tgl, $old_status]);
+
+      $_SESSION['notif'] = ['pesan' => 'Grup berhasil dihapus.', 'tipe' => 'sukses'];
     }
   } catch (Exception $e) {
-    $_SESSION['notif'] = ['pesan' => 'Kesalahan: ' . $e->getMessage(), 'tipe' => 'error'];
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) { $pdo->rollBack(); }
+    $_SESSION['notif'] = ['pesan' => 'Kesalahan: '.$e->getMessage(), 'tipe' => 'error'];
   }
 
   header("Location: Index.php?page=distribusi");
   exit;
 }
 
-/* =================== DATA UTAMA ==================== */
+/* =================== AMBIL DATA ==================== */
+if (!isset($pdo) || !($pdo instanceof PDO)) {
+  die('<div style="padding:12px;color:#b91c1c;background:#fee2e2;border:1px solid #fecaca;border-radius:6px;">
+        Koneksi database ($pdo) tidak ditemukan.
+      </div>');
+}
+
 $daftar_distribusi = $pdo->query("
-  SELECT d.*, p.nama_produk
-  FROM distribusi d
-  JOIN produk p ON d.id_produk = p.id_produk
-  ORDER BY d.id_distribusi DESC
+  SELECT d.id_distribusi,
+         d.nama_distributor, d.alamat_distributor,
+         d.tanggal_pesanan, d.status_pengiriman,
+         d.id_produk, d.jumlah_pesanan,
+         p.nama_produk
+    FROM distribusi d
+    JOIN produk p ON d.id_produk = p.id_produk
+ ORDER BY d.tanggal_pesanan DESC, d.nama_distributor ASC, d.id_distribusi ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
 $produk_options = $pdo->query("
   SELECT id_produk, nama_produk
-  FROM produk
-  ORDER BY nama_produk
+    FROM produk
+ ORDER BY nama_produk
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <main class="flex-1 bg-gray-100">
   <section class="p-6 overflow-x-auto">
     <?php if (isset($_SESSION['notif'])): ?>
-      <div class="mb-4 p-4 rounded-md text-white font-bold <?= $_SESSION['notif']['tipe'] === 'sukses' ? 'bg-green-500' : 'bg-red-500'; ?>">
+      <div class="mb-4 p-4 rounded-md text-white font-bold <?= $_SESSION['notif']['tipe'] === 'sukses' ? 'bg-green-600' : 'bg-red-600'; ?>">
         <?= htmlspecialchars($_SESSION['notif']['pesan']); ?>
       </div>
       <?php unset($_SESSION['notif']); ?>
     <?php endif; ?>
 
-    <button id="btnTambah" class="mb-4 inline-flex items-center gap-2 bg-blue-700 text-white text-sm font-normal px-4 py-2 rounded" type="button">
-      <i class="fas fa-plus"></i> Input Pesanan
+    <button id="btnTambah" class="mb-4 inline-flex items-center bg-blue-700 hover:bg-blue-800 text-white text-sm font-normal px-4 py-2 rounded" type="button">
+      <i class="fas fa-plus"></i>&nbsp;Input Pesanan
     </button>
 
     <table class="w-full border border-gray-300 text-sm bg-white">
@@ -109,55 +165,110 @@ $produk_options = $pdo->query("
           <th class="border border-gray-300 px-3 py-2">No.</th>
           <th class="border border-gray-300 px-3 py-2">Distributor</th>
           <th class="border border-gray-300 px-3 py-2">Alamat</th>
+          <th class="border border-gray-300 px-3 py-2">Tanggal</th>
           <th class="border border-gray-300 px-3 py-2">Produk</th>
-          <th class="border border-gray-300 px-3 py-2">Jumlah</th>
-          <th class="border border-gray-300 px-3 py-2">Tanggal Pesanan</th>
+          <th class="border border-gray-300 px-3 py-2">Jumlah (kg)</th>
           <th class="border border-gray-300 px-3 py-2">Status</th>
           <th class="border border-gray-300 px-3 py-2">Aksi</th>
         </tr>
       </thead>
       <tbody>
-        <?php if (empty($daftar_distribusi)): ?>
+        <?php
+        if (empty($daftar_distribusi)):
+        ?>
           <tr>
-            <td colspan="8" class="border border-gray-300 px-3 py-4 text-center text-gray-500">Belum ada data distribusi.</td>
-          </tr>
-        <?php else: foreach ($daftar_distribusi as $i => $d): ?>
-          <tr>
-            <td class="border border-gray-300 px-3 py-2"><?= $i + 1 ?>.</td>
-            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['nama_distributor']) ?></td>
-            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['alamat_distributor']) ?></td>
-            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['nama_produk']) ?></td>
-            <td class="border border-gray-300 px-3 py-2"><?= (int)$d['jumlah_pesanan'] ?> kg</td>
-            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['tanggal_pesanan']) ?></td>
-            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($d['status_pengiriman']) ?></td>
-            <td class="border border-gray-300 px-3 py-2 space-x-2">
-              <button class="btnEdit px-3 py-1 text-xs text-white rounded" style="background-color:#1d4ed8;"
-                data-id="<?= $d['id_distribusi'] ?>"
-                data-nama="<?= htmlspecialchars($d['nama_distributor']) ?>"
-                data-alamat="<?= htmlspecialchars($d['alamat_distributor']) ?>"
-                data-id_produk="<?= $d['id_produk'] ?>"
-                data-jumlah="<?= (int)$d['jumlah_pesanan'] ?>"
-                data-tanggal="<?= $d['tanggal_pesanan'] ?>"
-                data-status="<?= htmlspecialchars($d['status_pengiriman']) ?>">Edit</button>
-              <form method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus data ini?')">
-                <input type="hidden" name="action" value="hapus">
-                <input type="hidden" name="id_distribusi_hapus" value="<?= $d['id_distribusi'] ?>">
-                <button type="submit" class="bg-red-700 text-white text-xs px-3 py-1 rounded hover:bg-red-800">Hapus</button>
-              </form>
+            <td colspan="8" class="border border-gray-300 px-3 py-4 text-center text-gray-500">
+              Belum ada data distribusi.
             </td>
           </tr>
-        <?php endforeach; endif; ?>
+        <?php
+        else:
+          // Kelompokkan berdasarkan (nama_distributor, alamat, tanggal, status)
+          $groups = [];
+          foreach ($daftar_distribusi as $row) {
+            $key = $row['nama_distributor'].'|'.$row['alamat_distributor'].'|'.$row['tanggal_pesanan'].'|'.$row['status_pengiriman'];
+            if (!isset($groups[$key])) {
+              $groups[$key] = [
+                'header' => [
+                  'nama_distributor'  => $row['nama_distributor'],
+                  'alamat_distributor'=> $row['alamat_distributor'],
+                  'tanggal_pesanan'   => $row['tanggal_pesanan'],
+                  'status_pengiriman' => $row['status_pengiriman']
+                ],
+                'rows' => []
+              ];
+            }
+            $groups[$key]['rows'][] = $row;
+          }
+
+          $no = 1;
+          foreach ($groups as $g):
+            $rowspan = count($g['rows']);
+            // siapkan data items untuk prefill edit (id_produk & jumlah)
+            $items = array_map(function($r){
+              return ['id_produk'=>(int)$r['id_produk'],'jumlah'=>(int)$r['jumlah_pesanan']];
+            }, $g['rows']);
+            $items_json = htmlspecialchars(json_encode($items), ENT_QUOTES);
+
+            foreach ($g['rows'] as $idx => $r):
+        ?>
+          <tr>
+            <?php if ($idx === 0): ?>
+              <td class="border border-gray-300 px-3 py-2 align-top" rowspan="<?= $rowspan ?>"><?= $no ?>.</td>
+              <td class="border border-gray-300 px-3 py-2 align-top" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($g['header']['nama_distributor']) ?></td>
+              <td class="border border-gray-300 px-3 py-2 align-top" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($g['header']['alamat_distributor']) ?></td>
+              <td class="border border-gray-300 px-3 py-2 align-top" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($g['header']['tanggal_pesanan']) ?></td>
+            <?php endif; ?>
+
+            <!-- Per-produk -->
+            <td class="border border-gray-300 px-3 py-2"><?= htmlspecialchars($r['nama_produk']) ?></td>
+            <td class="border border-gray-300 px-3 py-2"><?= (int)$r['jumlah_pesanan'] ?></td>
+
+            <?php if ($idx === 0): ?>
+              <td class="border border-gray-300 px-3 py-2 align-top" rowspan="<?= $rowspan ?>"><?= htmlspecialchars($g['header']['status_pengiriman']) ?></td>
+              <td class="border border-gray-300 px-3 py-2 align-top" rowspan="<?= $rowspan ?>">
+                <button
+                  class="btnEditGrup px-3 py-1 text-xs text-white rounded"
+                  style="background-color:#1d4ed8;"
+                  data-nama-old="<?= htmlspecialchars($g['header']['nama_distributor'], ENT_QUOTES) ?>"
+                  data-alamat-old="<?= htmlspecialchars($g['header']['alamat_distributor'], ENT_QUOTES) ?>"
+                  data-tanggal-old="<?= htmlspecialchars($g['header']['tanggal_pesanan'], ENT_QUOTES) ?>"
+                  data-status-old="<?= htmlspecialchars($g['header']['status_pengiriman'], ENT_QUOTES) ?>"
+                  data-items='<?= $items_json ?>'
+                >Edit</button>
+
+                <button
+                  class="btnHapusGrup bg-red-700 text-white text-xs px-3 py-1 rounded ml-2"
+                  data-nama-old="<?= htmlspecialchars($g['header']['nama_distributor'], ENT_QUOTES) ?>"
+                  data-alamat-old="<?= htmlspecialchars($g['header']['alamat_distributor'], ENT_QUOTES) ?>"
+                  data-tanggal-old="<?= htmlspecialchars($g['header']['tanggal_pesanan'], ENT_QUOTES) ?>"
+                  data-status-old="<?= htmlspecialchars($g['header']['status_pengiriman'], ENT_QUOTES) ?>"
+                >Hapus</button>
+              </td>
+            <?php endif; ?>
+          </tr>
+        <?php
+            endforeach;
+            $no++;
+          endforeach;
+        endif;
+        ?>
       </tbody>
     </table>
   </section>
 
-  <!-- Modal Tambah/Edit -->
+  <!-- MODAL TAMBAH / EDIT GRUP -->
   <div id="modalForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-    <form action="" method="POST" id="formDistribusi" class="bg-white p-6 rounded w-[680px] max-w-[92vw] relative shadow">
+    <form action="" method="POST" id="formDistribusi" class="bg-white p-6 rounded w-[700px] max-w-[92vw] relative shadow">
       <input type="hidden" name="action" id="formAction" value="tambah">
-      <input type="hidden" name="id_distribusi" id="formIdDistribusi">
 
-      <button type="button" class="btnClose absolute top-2 right-3 text-gray-600 hover:text-black text-xl font-bold">&times;</button>
+      <!-- kunci grup lama (untuk edit_grup / hapus_grup) -->
+      <input type="hidden" name="key_nama_old" id="key_nama_old">
+      <input type="hidden" name="key_alamat_old" id="key_alamat_old">
+      <input type="hidden" name="key_tanggal_old" id="key_tanggal_old">
+      <input type="hidden" name="key_status_old" id="key_status_old">
+
+      <button type="button" class="btnClose absolute top-2 right-3 text-gray-600 hover:text-black text-xl font-bold" aria-label="Close">&times;</button>
 
       <h2 id="formTitle" class="text-lg font-semibold text-gray-800 mb-4">Tambah Pesanan</h2>
 
@@ -168,7 +279,7 @@ $produk_options = $pdo->query("
         </div>
         <div>
           <label class="block text-sm text-gray-700 mb-1">Tanggal Pesanan</label>
-          <input type="date" name="tgl_pesanan" id="formTanggal" required class="w-full border px-3 py-2 rounded" value="<?= date('Y-m-d') ?>">
+          <input type="date" name="tgl_pesanan" id="formTanggal" class="w-full border px-3 py-2 rounded" value="<?= date('Y-m-d') ?>">
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm text-gray-700 mb-1">Alamat Distributor</label>
@@ -185,10 +296,11 @@ $produk_options = $pdo->query("
         </div>
       </div>
 
+      <!-- DETAIL PRODUK (multi) -->
       <div class="mt-4">
         <div class="text-sm font-semibold text-gray-800 mb-2">Detail Produk</div>
-        <div id="produkList"></div>
-        <button type="button" class="mt-2 bg-blue-700 text-white text-xs px-3 py-1 rounded" onclick="addRow()">+ Tambah Produk</button>
+        <div id="produkListMulti"></div>
+        <button type="button" id="btnAddRow" class="mt-3 bg-blue-700 text-white text-xs px-3 py-1 rounded">+ Tambah Produk</button>
       </div>
 
       <div class="mt-5">
@@ -196,54 +308,49 @@ $produk_options = $pdo->query("
       </div>
     </form>
   </div>
+
+  <!-- MODAL HAPUS GRUP -->
+  <div id="modalHapusGrup" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="w-[340px] border border-gray-300 shadow-md p-6 bg-white rounded-md relative">
+      <button type="button" id="btnCloseHapusGrup" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700" aria-label="Close modal">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 class="font-semibold text-black mb-3 text-lg">Hapus Semua Item di Grup?</h2>
+      <p class="text-gray-700 mb-5 text-sm">Seluruh item dengan header yang sama akan dihapus.</p>
+      <form action="" method="POST" class="flex justify-end space-x-3">
+        <input type="hidden" name="action" value="hapus_grup">
+        <input type="hidden" name="key_nama_old" id="hg_nama">
+        <input type="hidden" name="key_alamat_old" id="hg_alamat">
+        <input type="hidden" name="key_tanggal_old" id="hg_tanggal">
+        <input type="hidden" name="key_status_old" id="hg_status">
+        <button type="button" id="btnCancelHapusGrup" class="border border-gray-300 text-gray-900 text-sm font-medium rounded px-4 py-2 hover:bg-gray-100">Batal</button>
+        <button type="submit" class="bg-red-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-red-700">Ya, Hapus Grup</button>
+      </form>
+    </div>
+  </div>
 </main>
 
 <script>
-  // ===== Modal basic =====
-  const btnTambah = document.getElementById('btnTambah');
-  const modal = document.getElementById('modalForm');
-  const closeModal = () => modal.classList.add('hidden');
+  // ===== Modal =====
+  const modal          = document.getElementById('modalForm');
+  const modalHapusGrup = document.getElementById('modalHapusGrup');
+
   const openModal  = () => modal.classList.remove('hidden');
-  document.querySelectorAll('.btnClose').forEach(btn => btn.onclick = closeModal);
-  window.onclick = e => { if (e.target === modal) closeModal(); };
+  const closeModal = () => modal.classList.add('hidden');
+  const closeModalHapusGrup = () => modalHapusGrup.classList.add('hidden');
 
-  btnTambah.onclick = () => {
-    document.getElementById('formTitle').textContent = 'Tambah Pesanan';
-    document.getElementById('formAction').value = 'tambah';
-    document.getElementById('formIdDistribusi').value = '';
-    // reset field header
-    ['formNama','formAlamat','formTanggal','formStatus'].forEach(id => {
-      const el = document.getElementById(id);
-      if (id==='formTanggal') el.value = '<?= date('Y-m-d') ?>';
-      else el.value = '';
-    });
-    // reset detail
-    document.getElementById('produkList').innerHTML = '';
-    rowCount = 0;
-    addRow();
-    openModal();
-  };
-
-  // ===== Edit (per baris) =====
-  document.querySelectorAll('.btnEdit').forEach(btn => {
-    btn.onclick = () => {
-      document.getElementById('formTitle').textContent = 'Edit Pesanan';
-      document.getElementById('formAction').value = 'edit';
-      document.getElementById('formIdDistribusi').value = btn.dataset.id;
-      document.getElementById('formNama').value = btn.dataset.nama;
-      document.getElementById('formAlamat').value = btn.dataset.alamat;
-      document.getElementById('formTanggal').value = btn.dataset.tanggal;
-      document.getElementById('formStatus').value = btn.dataset.status;
-
-      // detail untuk edit (satu baris sesuai row yang diklik)
-      document.getElementById('produkList').innerHTML = '';
-      rowCount = 0;
-      addRow(btn.dataset.id_produk, btn.dataset.jumlah);
-      openModal();
-    };
+  // close via tombol X & klik overlay
+  document.addEventListener('click', (e) => {
+    if (e.target.classList && e.target.classList.contains('btnClose')) closeModal();
+    if (e.target === modal) closeModal();
+    if (e.target === modalHapusGrup) closeModalHapusGrup();
   });
 
-  // ===== Dynamic rows (multi-produk) =====
+  // ====== Elemen form ======
+  const btnTambah       = document.getElementById('btnTambah');
+  const produkListMulti = document.getElementById('produkListMulti');
+
+  // Options produk untuk baris dinamis
   const produkOptions = `<?php foreach ($produk_options as $p) {
     echo '<option value="'.(int)$p['id_produk'].'">'.htmlspecialchars($p['nama_produk']).'</option>';
   } ?>`;
@@ -268,28 +375,128 @@ $produk_options = $pdo->query("
           <input type="number" name="detail[${id}][jumlah]" min="1" class="w-full border px-3 py-2 rounded" required>
         </div>
         <div class="text-right md:text-left">
-          <button type="button" class="bg-red-600 text-white text-xs px-3 py-2 rounded" onclick="this.closest('.produk-row').remove()">Hapus</button>
+          <button type="button" class="bg-red-600 text-white text-xs px-3 py-1 rounded btnRemoveRow">Hapus</button>
         </div>
       </div>`;
-    document.getElementById('produkList').appendChild(row);
+    produkListMulti.appendChild(row);
 
-    // Set nilai awal jika diberikan (mode edit)
-    if (selectedProduk) row.querySelector('select').value = selectedProduk;
-    if (jumlah) row.querySelector('input').value = jumlah;
+    if (selectedProduk !== '') row.querySelector('select').value = String(selectedProduk);
+    if (jumlah !== '') row.querySelector('input').value = String(jumlah);
   }
 
-  // Validasi minimal 1 baris detail
-  document.getElementById('formDistribusi').addEventListener('submit', function(e) {
-    const rows = [...document.querySelectorAll('.produk-row')];
-    let ok = 0;
-    rows.forEach(r => {
-      const pr = r.querySelector('select');
-      const j  = r.querySelector('input[type="number"]');
-      if (pr.value && parseInt(j.value||'0') > 0) ok++;
-    });
-    if (ok === 0) {
+  function resetDetailArea() {
+    produkListMulti.innerHTML = '';
+    rowCount = 0;
+  }
+
+  // ===== Event Delegation untuk tombol dynamic =====
+  // Tombol "+ Tambah Produk"
+  document.addEventListener('click', function (e) {
+    const addBtn = e.target.closest('#btnAddRow');
+    if (addBtn) {
       e.preventDefault();
-      alert('Tambahkan minimal 1 produk dengan jumlah yang benar.');
+      addRow();
+    }
+  });
+  // Tombol "Hapus" per baris produk
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.classList.contains('btnRemoveRow')) {
+      e.preventDefault();
+      const wrap = e.target.closest('.produk-row');
+      if (wrap) wrap.remove();
+    }
+  });
+
+  // ====== Tambah Grup ======
+  btnTambah.onclick = () => {
+    document.getElementById('formTitle').textContent = 'Tambah Pesanan';
+    document.getElementById('formAction').value = 'tambah';
+
+    // kosongkan kunci grup (bukan edit)
+    ['key_nama_old','key_alamat_old','key_tanggal_old','key_status_old'].forEach(id => document.getElementById(id).value = '');
+
+    // reset header
+    document.getElementById('formNama').value = '';
+    document.getElementById('formAlamat').value = '';
+    document.getElementById('formTanggal').value = '<?= date('Y-m-d') ?>';
+    document.getElementById('formStatus').value = '';
+
+    // detail multi
+    resetDetailArea();
+    addRow();
+
+    openModal();
+  };
+
+  // ====== Edit / Hapus Grup ======
+  function attachGroupHandlers() {
+    // Edit Grup
+    document.querySelectorAll('.btnEditGrup').forEach(btn => {
+      btn.onclick = () => {
+        const n = btn.dataset.namaOld || '';
+        const a = btn.dataset.alamatOld || '';
+        const t = btn.dataset.tanggalOld || '';
+        const s = btn.dataset.statusOld || '';
+        const items = JSON.parse(btn.dataset.items || '[]'); // [{id_produk, jumlah}, ...]
+
+        document.getElementById('formTitle').textContent = 'Edit Grup';
+        document.getElementById('formAction').value = 'edit_grup';
+
+        // isi header default = header lama
+        document.getElementById('formNama').value    = n;
+        document.getElementById('formAlamat').value  = a;
+        document.getElementById('formTanggal').value = t;
+        document.getElementById('formStatus').value  = s;
+
+        // set kunci grup lama
+        document.getElementById('key_nama_old').value   = n;
+        document.getElementById('key_alamat_old').value = a;
+        document.getElementById('key_tanggal_old').value= t;
+        document.getElementById('key_status_old').value = s;
+
+        // detail: prefill semua item & bisa tambah baris
+        resetDetailArea();
+        if (items.length) {
+          items.forEach(it => addRow(it.id_produk, it.jumlah));
+        } else {
+          addRow();
+        }
+
+        openModal();
+      };
+    });
+
+    // Hapus Grup
+    document.querySelectorAll('.btnHapusGrup').forEach(btn => {
+      btn.onclick = () => {
+        document.getElementById('hg_nama').value   = btn.dataset.namaOld || '';
+        document.getElementById('hg_alamat').value = btn.dataset.alamatOld || '';
+        document.getElementById('hg_tanggal').value= btn.dataset.tanggalOld || '';
+        document.getElementById('hg_status').value = btn.dataset.statusOld || '';
+        modalHapusGrup.classList.remove('hidden');
+      };
+    });
+  }
+  attachGroupHandlers();
+
+  document.getElementById('btnCloseHapusGrup').addEventListener('click', closeModalHapusGrup);
+  document.getElementById('btnCancelHapusGrup').addEventListener('click', closeModalHapusGrup);
+
+  // ====== Validasi submit ======
+  document.getElementById('formDistribusi').addEventListener('submit', function(e) {
+    const action = document.getElementById('formAction').value;
+    if (action === 'tambah' || action === 'edit_grup') {
+      const rows = [...document.querySelectorAll('.produk-row')];
+      let ok = 0;
+      rows.forEach(r => {
+        const pr = r.querySelector('select');
+        const j  = r.querySelector('input[type="number"]');
+        if (pr && j && pr.value && parseInt(j.value||'0') > 0) ok++;
+      });
+      if (ok === 0) {
+        e.preventDefault();
+        alert('Tambahkan minimal 1 produk dengan jumlah yang benar.');
+      }
     }
   });
 </script>
