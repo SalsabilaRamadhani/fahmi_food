@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 11 Agu 2025 pada 04.52
+-- Waktu pembuatan: 12 Agu 2025 pada 10.56
 -- Versi server: 10.4.28-MariaDB
 -- Versi PHP: 8.2.4
 
@@ -113,7 +113,9 @@ INSERT INTO `jadwal` (`id_jadwal`, `tanggal`, `waktu`, `waktu_mulai`, `waktu_sel
 (7, '2025-08-02', NULL, '17:30:00', '19:30:00', 'Pengemasan', 1),
 (8, '2025-08-05', NULL, '08:00:00', '12:00:00', 'Produksi', 1),
 (9, '2025-08-08', NULL, '12:00:00', '19:00:00', 'Produksi', 1),
-(10, '2025-08-09', NULL, '10:00:00', '12:30:00', 'Produksi', 1);
+(10, '2025-08-09', NULL, '10:00:00', '12:30:00', 'Produksi', 1),
+(12, '2025-08-11', NULL, '07:00:00', '12:00:00', 'Produksi', 1),
+(13, '2025-08-10', NULL, '10:07:00', '13:00:00', 'Produksi', 1);
 
 -- --------------------------------------------------------
 
@@ -161,7 +163,8 @@ INSERT INTO `pekerja_lepas` (`id_pekerja`, `nama_pekerja`, `kontak`, `alamat`, `
 (4, 'Ardi', '082232192297', 'Garung', 'Belum Dibayar', 1),
 (5, 'Edwin', '089922347764', 'Krasak', 'Dibayar', 1),
 (6, 'Yudhis', '087766547789', 'Kalibeber', 'Belum Dibayar', 1),
-(7, 'Salma', '085729269751', 'kalibeber', 'Belum Dibayar', 1);
+(7, 'Salma', '085729269751', 'kalibeber', 'Belum Dibayar', 1),
+(8, 'slsa', '0999', 'wonosobo', 'Belum Dibayar', 1);
 
 -- --------------------------------------------------------
 
@@ -269,7 +272,9 @@ INSERT INTO `produksi` (`id_produksi`, `id_produk`, `id_jadwal`, `id_admin`, `ju
 (4, 4602, 5, 1, 200, '2025-08-02', 198, 2),
 (5, 4602, 8, 1, 300, '2025-08-05', 297, 3),
 (6, 4602, 9, 1, 100, '2025-08-08', 90, 10),
-(7, 4602, 10, 1, 300, '2025-08-09', 285, 15);
+(7, 4602, 10, 1, 300, '2025-08-09', 285, 15),
+(8, 4602, 12, 1, 300, '2025-08-11', 285, 15),
+(9, 4602, 13, 1, 900, '2025-08-10', 890, 10);
 
 --
 -- Trigger `produksi`
@@ -349,7 +354,10 @@ INSERT INTO `stok` (`id_stok`, `id_produk`, `id_produksi`, `jumlah_stok`, `sisa_
 (4, 4602, 5, 297, NULL, 'Siap dipacking', NULL),
 (5, 4602, 4, 80, NULL, 'Siap dikemas', NULL),
 (6, 4602, 6, 35, NULL, 'Siap dikemas', NULL),
-(7, 4602, 7, 195, NULL, 'Siap dikemas', NULL);
+(7, 4602, 7, 195, NULL, 'Siap dikemas', NULL),
+(8, 4602, 8, 100, NULL, 'Siap dikemas', NULL),
+(9, 4602, 8, 150, NULL, 'Siap dikemas', NULL),
+(10, 4602, 9, 870, NULL, 'Siap dikemas', NULL);
 
 -- --------------------------------------------------------
 
@@ -499,7 +507,7 @@ ALTER TABLE `distribusi_detail`
 -- AUTO_INCREMENT untuk tabel `jadwal`
 --
 ALTER TABLE `jadwal`
-  MODIFY `id_jadwal` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id_jadwal` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT untuk tabel `laporan`
@@ -511,7 +519,7 @@ ALTER TABLE `laporan`
 -- AUTO_INCREMENT untuk tabel `pekerja_lepas`
 --
 ALTER TABLE `pekerja_lepas`
-  MODIFY `id_pekerja` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id_pekerja` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT untuk tabel `pembayaran_gaji`
@@ -541,7 +549,7 @@ ALTER TABLE `produk`
 -- AUTO_INCREMENT untuk tabel `produksi`
 --
 ALTER TABLE `produksi`
-  MODIFY `id_produksi` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id_produksi` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT untuk tabel `riwayat_gaji`
@@ -553,7 +561,7 @@ ALTER TABLE `riwayat_gaji`
 -- AUTO_INCREMENT untuk tabel `stok`
 --
 ALTER TABLE `stok`
-  MODIFY `id_stok` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id_stok` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
